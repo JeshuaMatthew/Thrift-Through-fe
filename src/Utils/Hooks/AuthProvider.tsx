@@ -1,22 +1,20 @@
 import { createContext, type ReactNode, useContext, useState, useEffect } from "react";
-import AxiosInstance from "../AxiosInstance";
-import { getMe } from "../../Services/ProfileServices";
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-};
+import { AuthService } from "../../Services/AuthServices";
+import type { User } from "../../Types/User";
+import type { Login } from "../../Types/Login";
 
 type AuthContextType = {
   isAuthenticated: boolean;
   isLoading: boolean; 
   user: User | null;  
-  login: () => Promise<void>; 
+  login: (credentials: Login) => Promise<{ success: boolean; message: string }>; 
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+// Initialize AuthService globally so the session is preserved across renders
+const authService = new AuthService();
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -25,10 +23,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkSession = async () => {
     try {
-      const response = await getMe(); 
+      const response = await authService.getMe(); 
       
-      setIsAuthenticated(true);
-      setUser(response.data); 
+      if (response.isAuthenticated) {
+        setIsAuthenticated(true);
+        const profileResponse = await authService.getMyProfile();
+        if (profileResponse.success && profileResponse.data) {
+          setUser(profileResponse.data);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
@@ -41,14 +47,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkSession();
   }, []);
 
-  const login = async () => {
-    await checkSession(); 
+  const login = async (credentials: Login) => {
+    const res = await authService.login(credentials);
+    if (res.success) {
+      // Re-fetch session data to populate user state
+      await checkSession();
+    }
+    return { success: res.success, message: res.message };
   };
 
   const logout = async () => {
     try {
       setIsLoading(true);
-      await AxiosInstance.post("/api/logout");
+      await authService.logout();
     } catch (error) {
       console.error("Gagal melakukan logout", error);
     } finally {

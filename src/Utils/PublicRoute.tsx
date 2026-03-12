@@ -4,7 +4,7 @@ import { useAuth } from "./Hooks/AuthProvider";
 
 const PublicRoute = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <Navigate to="/" /> : children;
+  return isAuthenticated ? <Navigate to="/map" /> : children;
 };
 
 export default PublicRoute;
