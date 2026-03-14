@@ -1,25 +1,32 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../Utils/Hooks/AuthProvider';
-import { CommunityService } from '../../Services/CommunitiesServices';
-import type { Community } from '../../Types/Community';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Users, Hash } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useAuth } from "../../Utils/Hooks/AuthProvider";
+import { CommunityService } from "../../Services/CommunitiesServices";
+import type { Community } from "../../Types/Community";
+import { Plus, Search, Trash2, Edit2, X, Globe, Lock, MessageSquare } from "lucide-react";
+import CommunityForm from "../Components/CommunityForm";
+import ThriftSkeleton from "../Components/ThriftSkeleton";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const CommunityPage = () => {
   const { user } = useAuth();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingCommunity, setEditingCommunity] = useState<Community | null>(null);
+  const [selectedCommunityForPopup, setSelectedCommunityForPopup] = useState<Community | null>(null);
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
 
   const fetchCommunities = async () => {
     setIsLoading(true);
     try {
       const commService = new CommunityService();
-      // Simulate network delay for effect
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 600));
       const allComms = await commService.getAllCommunities();
-      // Filter out private communities (like personal chats)
-      const publicComms = allComms.filter(c => c.isPublic !== false);
+      const publicComms = allComms.filter((c) => c.isPublic !== false);
       setCommunities(publicComms);
     } catch (error) {
       console.error("Failed to fetch communities:", error);
@@ -32,150 +39,313 @@ const CommunityPage = () => {
     fetchCommunities();
   }, [user]);
 
-  const filteredCommunities = communities.filter(comm => 
-    comm.communityname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (comm.description && comm.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  const handleAddNew = () => {
+    setEditingCommunity(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (comm: Community) => {
+    setEditingCommunity(comm);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (commId: number) => {
+    if (!user || !window.confirm("Apakah Anda yakin ingin menghapus komunitas ini?"))
+      return;
+
+    try {
+      const commService = new CommunityService();
+      const res = await commService.deleteCommunity(commId, user.userid);
+      if (res.success) {
+        await fetchCommunities();
+      } else {
+        alert(res.message);
+      }
+    } catch (error) {
+      console.error("Failed to delete", error);
+    }
+  };
+
+  const filteredCommunities = communities.filter(
+    (comm) =>
+      comm.communityname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (comm.description &&
+        comm.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-950">
-        <div className="flex flex-col items-center gap-4">
-            <div className="relative w-16 h-16">
-                <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 animate-spin"></div>
-            </div>
-            <p className="text-slate-400 font-medium animate-pulse">Memuat daftar komunitas...</p>
-        </div>
-      </div>
-    );
-  }
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredCommunities.length / ITEMS_PER_PAGE)
+  );
+  const paginatedCommunities = filteredCommunities.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handleSearch = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white relative pt-10 pb-20 overflow-x-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-
+    <div className="min-h-screen bg-bg-clean text-tx-primary font-questrial relative pt-10 pb-20 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-16">
-        <header className="mb-12">
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col md:flex-row md:items-end justify-between gap-6"
-            >
-                <div>
-                    <h1 className="text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-slate-500 mb-3 tracking-tight">
-                        Komunitas
-                    </h1>
-                    <p className="text-slate-400 text-lg max-w-xl">
-                        Bergabunglah dengan komunitas thrift di sekitarmu. Temukan teman baru dan berdiskusi seputar barang menarik.
-                    </p>
-                </div>
-                
-                <div className="flex items-center gap-2 bg-slate-900/50 backdrop-blur-md border border-white/5 p-1 rounded-2xl">
-                    <div className="flex items-center gap-2 px-4 py-2 border-r border-white/5">
-                        <Users className="h-5 w-5 text-indigo-400" />
-                        <span className="text-sm font-bold text-white">Thrift Hub</span>
-                    </div>
-                    <div className="px-4 py-2">
-                        <span className="text-xs text-slate-500 block">Tersedia</span>
-                        <span className="text-sm font-bold text-indigo-400">{communities.length} Grup</span>
-                    </div>
-                </div>
-            </motion.div>
-        </header>
-
-        {/* Search */}
-        <div className="mb-10 space-y-6">
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-grow group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                    </div>
-                    <input 
-                        type="text" 
-                        placeholder="Cari nama atau deskripsi komunitas..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-slate-900/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all backdrop-blur-sm"
-                    />
-                </div>
-            </div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+          <div>
+            <h1 className="text-4xl font-gasoek text-tx-primary mb-2">
+              Komunitasku
+            </h1>
+            <p className="text-tx-secondary font-questrial">
+              Temukan dan bergabunglah dengan komunitas pecinta thrift di sekitarmu.
+            </p>
+          </div>
+          <button
+            onClick={handleAddNew}
+            className="flex items-center gap-2 bg-tx-primary hover:bg-black text-bg-clean px-6 py-3.5 rounded-2xl font-gasoek text-sm tracking-wide transition-all shadow-md group"
+          >
+            <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+            Buat Komunitas Baru
+          </button>
         </div>
 
-        {/* Community Grid */}
-        <AnimatePresence mode="popLayout">
-            {filteredCommunities.length === 0 ? (
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="w-full py-20 flex flex-col items-center justify-center text-center bg-slate-900/20 rounded-3xl border border-white/5"
-                >
-                    <div className="w-20 h-20 mb-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
-                        <Hash className="h-10 w-10" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Komunitas Tidak Ditemukan</h3>
-                    <p className="text-slate-400 max-w-md px-6">
-                        Maaf, kami tidak menemukan komunitas yang sesuai dengan pencarian Anda.
-                    </p>
-                </motion.div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    {filteredCommunities.map((comm, idx) => {
-                        const fallBackPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(comm.communityname)}&background=random`;
-                        return (
-                          <motion.div 
-                              layout
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: idx * 0.05 }}
-                              key={comm.communityid} 
-                              className="group flex flex-col bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden hover:bg-slate-800/60 transition-all duration-500 flex-grow"
-                          >
-                              {/* Image Header */}
-                              <div className="relative h-48 overflow-hidden bg-slate-800">
-                                  <img 
-                                      src={comm.profilepicturl || fallBackPic} 
-                                      alt={comm.communityname} 
-                                      className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-80"
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
-                                  
-                                  {/* Profile Circle Floating */}
-                                  <div className="absolute -bottom-6 left-6 w-16 h-16 rounded-2xl border-4 border-slate-900 overflow-hidden shadow-xl bg-slate-800">
-                                       <img 
-                                          src={comm.profilepicturl || fallBackPic} 
-                                          alt={comm.communityname} 
-                                          className="w-full h-full object-cover"
-                                       />
-                                  </div>
-                              </div>
+        {/* Search */}
+        <div className="mb-10">
+          <div className="relative group max-w-2xl">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="w-5 h-5 text-tx-muted group-focus-within:text-bg-vermillion transition-colors" />
+            </div>
+            <input
+              type="text"
+              placeholder="Cari nama atau deskripsi komunitas..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full bg-bg-fresh border border-bg-fresh/50 rounded-2xl py-3.5 pl-12 pr-4 text-tx-primary placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-tx-primary/30 focus:border-tx-primary/50 transition-all shadow-sm font-gasoek text-sm tracking-wide"
+            />
+          </div>
+        </div>
 
-                              {/* Info Part */}
-                              <div className="p-6 pt-8 flex-1 flex flex-col">
-                                  <h3 className="text-xl font-bold text-white mb-2 line-clamp-1 group-hover:text-indigo-400 transition-colors leading-tight">
-                                      {comm.communityname}
-                                  </h3>
-                                  <p className="text-slate-400 text-sm line-clamp-3 mb-6 flex-1">
-                                      {comm.description || "Tidak ada deskripsi tersedia untuk komunitas ini."}
-                                  </p>
-                                  
-                                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                    <button className="w-full py-3 bg-indigo-500/10 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-xl font-bold transition-all duration-300">
-                                        Lihat Komunitas
-                                    </button>
-                                  </div>
-                              </div>
-                          </motion.div>
-                        );
-                    })}
-                </div>
-            )}
-        </AnimatePresence>
+        {/* Grid Content */}
+        <div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <ThriftSkeleton key={i} />
+              ))}
+            </div>
+          ) : filteredCommunities.length === 0 ? (
+            <div className="w-full py-24 flex flex-col items-center justify-center text-center bg-bg-vermillion rounded-xl border border-bg-vermillion/50 shadow-sm">
+              <div className="w-25 h-25 mb-6 rounded-lg bg-bg-fresh flex items-center justify-center text-tx-primary">
+                <span className="text-3xl font-black font-questrial">
+                  (´•︵•`)
+                </span>
+              </div>
+              <h3 className="text-2xl font-gasoek text-tx-primary mb-3">
+                Komunitas Tidak Ditemukan
+              </h3>
+              <p className="text-tx-primary font-questrial max-w-md px-6 bg-white/20 p-4 rounded-lg shadow-inner">
+                Maaf, kami tidak menemukan komunitas yang sesuai. Coba gunakan kata kunci lain.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {paginatedCommunities.map((comm) => {
+                const fallBackPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(comm.communityname)}&background=random`;
+
+                return (
+                  <div
+                    key={comm.communityid}
+                    className="flex flex-col bg-bg-vermillion border border-bg-vermillion/50 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-bg-vermillion transition-all duration-200"
+                  >
+                    <div 
+                      className="relative aspect-video shrink-0 bg-bg-clean overflow-hidden cursor-pointer group"
+                      onClick={() => setSelectedCommunityForPopup(comm)}
+                    >
+                      <img
+                        src={comm.bannerurl || comm.profilepicturl || fallBackPic}
+                        alt={comm.communityname}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-linear-to-t from-bg-vermillion/80 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+                    </div>
+
+                    {/* Content */}
+                    <div 
+                      className="p-5 flex flex-col flex-1 bg-bg-vermillion cursor-pointer"
+                      onClick={() => setSelectedCommunityForPopup(comm)}
+                    >
+                      <h3 className="text-lg font-gasoek text-tx-primary mb-3 line-clamp-1 leading-tight uppercase tracking-wide">
+                        {comm.communityname}
+                      </h3>
+                      <div className="bg-bg-fresh/80 border border-bg-fresh p-3 rounded-xl shadow-inner flex-1">
+                        <p className="text-xs text-tx-primary font-questrial line-clamp-4 opacity-90 leading-relaxed italic">
+                          {comm.description || "Tidak ada deskripsi tersedia."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-12 flex items-center justify-center gap-2 flex-wrap">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2.5 rounded-xl border border-bg-vermillion/50 bg-bg-vermillion text-tx-primary font-gasoek text-xs tracking-widest uppercase shadow-sm hover:bg-bg-fresh transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Prev
+            </button>
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`w-10 h-10 rounded-xl font-gasoek text-xs transition-all border ${
+                  currentPage === i + 1
+                    ? "bg-bg-fresh border-bg-fresh/50 text-tx-primary shadow-inner"
+                    : "bg-bg-vermillion border-bg-vermillion/50 text-tx-primary hover:bg-white"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2.5 rounded-xl border border-bg-vermillion/50 bg-bg-vermillion text-tx-primary font-gasoek text-xs tracking-widest uppercase shadow-sm hover:bg-bg-fresh transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
+
+      <CommunityForm
+        key={editingCommunity?.communityid || "new"}
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSuccess={fetchCommunities}
+        initialData={editingCommunity}
+      />
+
+      <AnimatePresence>
+        {selectedCommunityForPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedCommunityForPopup(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-2xl bg-bg-vermillion border border-bg-vermillion/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              {/* Banner */}
+              <div className="relative h-48 bg-bg-clean">
+                <img 
+                  src={selectedCommunityForPopup.bannerurl || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCommunityForPopup.communityname)}&background=random`} 
+                  alt="Banner" 
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-bg-vermillion via-transparent to-transparent" />
+                <button 
+                  onClick={() => setSelectedCommunityForPopup(null)}
+                  className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Profile Pic & Title */}
+              <div className="px-8 pb-6 relative">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-10 mb-6">
+                  <div className="h-24 w-24 rounded-2xl border-4 border-bg-vermillion overflow-hidden bg-bg-clean shadow-lg shrink-0">
+                    <img 
+                      src={selectedCommunityForPopup.profilepicturl || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCommunityForPopup.communityname)}&background=random`} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 pb-1">
+                    <h2 className="text-2xl font-gasoek text-tx-primary leading-tight uppercase tracking-wide truncate">
+                      {selectedCommunityForPopup.communityname}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      {selectedCommunityForPopup.isPublic ? (
+                        <span className="flex items-center gap-1 text-xs font-bold text-green-500 uppercase tracking-tighter">
+                          <Globe size={12} /> Publik
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs font-bold text-orange-500 uppercase tracking-tighter">
+                          <Lock size={12} /> Privat
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-bg-clean p-4 rounded-xl border border-white/10 shadow-inner">
+                    <h4 className="text-xs font-gasoek text-tx-secondary uppercase mb-2">Tentang Komunitas</h4>
+                    <p className="text-sm text-tx-primary font-questrial leading-relaxed">
+                      {selectedCommunityForPopup.description || "Tidak ada deskripsi tersedia."}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button 
+                      onClick={() => {
+                        setSelectedCommunityForPopup(null);
+                        navigate('/chats');
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-xl font-gasoek text-sm tracking-wide shadow-md hover:bg-black transition-all transform hover:-translate-y-0.5 group"
+                    >
+                      <MessageSquare size={18} className="group-hover:scale-110 transition-transform" />
+                      Buka Komunitas
+                    </button>
+                    
+                    {user?.userid === selectedCommunityForPopup.userid && (
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => {
+                            const comm = selectedCommunityForPopup;
+                            setSelectedCommunityForPopup(null);
+                            handleEdit(comm);
+                          }}
+                          className="px-6 py-4 bg-green-500 text-white rounded-xl font-gasoek text-sm hover:bg-green-600 transition-all shadow-md group"
+                          title="Edit Komunitas"
+                        >
+                          <Edit2 size={18} className="group-hover:scale-110 transition-transform" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const commId = selectedCommunityForPopup.communityid;
+                            setSelectedCommunityForPopup(null);
+                            handleDelete(commId);
+                          }}
+                          className="px-6 py-4 bg-red-500 text-white rounded-xl font-gasoek text-sm hover:bg-red-600 transition-all shadow-md group"
+                          title="Hapus Komunitas"
+                        >
+                          <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-export default CommunityPage;
+export default CommunityPage;

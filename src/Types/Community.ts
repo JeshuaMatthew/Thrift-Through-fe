@@ -3,6 +3,7 @@ export interface Community{
     userid : number;
     description: string;
     profilepicturl: string;
+    bannerurl: string;
     communityname: string;
     longitude?: number;
     latitude?: number;

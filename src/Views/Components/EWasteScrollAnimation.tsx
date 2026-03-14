@@ -152,11 +152,6 @@ const EWasteScrollAnimation = () => {
                     </div>
                   </a>
                 </p>
-                <p className="font-bold text-white p-4 bg-tx-primary/60 border-l-4 border-bg-fresh rounded-r-xl backdrop-blur-sm">
-                  Bersama Thrift-Through, setiap perbaikan dan pertukaran adalah
-                  langkah nyata menuju masa depan teknologi yang lebih
-                  berkelanjutan. 🌿
-                </p>
               </div>
             </div>
           </div>

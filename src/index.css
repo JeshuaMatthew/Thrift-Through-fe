@@ -55,3 +55,22 @@
         font-style: normal;
     }
 }
+
+/* Custom Scrollbar styled for homepage aesthetic */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--color-bg-clean, #eff9f4); 
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--color-bg-vermillion, #95c079); 
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-tx-secondary, #4a5d4e); 
+}

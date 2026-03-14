@@ -164,90 +164,15 @@ const FeatureScrollAnimation = () => {
   return (
     <section
       ref={containerRef}
-      className="relative w-full bg-white text-tx-primary border-t border-slate-100"
+      className="relative w-full bg-bg-clean text-tx-primary border-t border-slate-100"
       // Height corresponds to total features so we can scroll through them
       style={{ height: `${features.length * 100}vh` }}
     >
-      <div className="sticky top-0 w-full h-screen overflow-hidden flex flex-col md:flex-row items-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto gap-8 lg:gap-16 py-10 md:py-20">
-        {/* Left: Text Content container */}
-        <div className="w-full md:w-1/2 flex flex-col justify-center h-full relative z-10 md:pt-0 pt-16">
-          <div className="mb-6 md:mb-12">
-            <h2 className="text-3xl md:text-5xl font-gasoek leading-tight">
-              <span className="text-xl md:text-2xl">
-                Demi mengurangi e-waste,
-              </span>
-              <br />
-              <span className="text-tx-primary">kami menyediakan</span>
-              <br />
-              <span className="text-bg-vermillion">platform untuk</span>
-            </h2>
-          </div>
-
-          {/* Cards Container */}
-          <div className="relative h-64 sm:h-72 md:h-80 w-full">
-            {features.map((feature, index) => {
-              // We map index cleanly so that each feature occupies exactly 1/N of the scroll progress
-              const start = index / features.length;
-              const end = (index + 1) / features.length;
-
-              // Transition effect for fading in and out text cards
-              const opacity = useTransform(
-                scrollYProgress,
-                [
-                  Math.max(0, start - 0.05),
-                  start + 0.05,
-                  end - 0.05,
-                  Math.min(1, end + 0.05),
-                ],
-                [0, 1, 1, 0],
-              );
-
-              const y = useTransform(
-                scrollYProgress,
-                [
-                  Math.max(0, start - 0.05),
-                  start + 0.05,
-                  end - 0.05,
-                  Math.min(1, end + 0.05),
-                ],
-                [30, 0, 0, -30],
-              );
-
-              // pointerEvents is essentially a derived state from scrollYProgress but useTransform string interpolation works for simple cases,
-              // or we can just let opacity handle visibility.
-              // Instead of pointerEvents transfrom, we'll let CSS handle it.
-              const zIndex = useTransform(scrollYProgress, (v) =>
-                v >= start && v < end ? 10 : 0,
-              );
-
-              return (
-                <motion.div
-                  key={feature.id}
-                  className="absolute top-0 left-0 w-full flex flex-col gap-4"
-                  style={{ opacity, y, zIndex }}
-                >
-                  <span className="text-xs font-bold tracking-[0.2em] text-bg-vermillion uppercase font-questrial">
-                    {String(index + 1).padStart(2, "0")} &mdash; Fitur
-                  </span>
-                  <h3 className="text-3xl md:text-4xl font-gasoek text-tx-primary leading-tight flex items-center gap-3">
-                    {feature.title}
-                    {feature.isAI && (
-                      <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-bg-vermillion shrink-0" />
-                    )}
-                  </h3>
-                  <p className="text-tx-secondary leading-relaxed text-base md:text-lg font-questrial max-w-md">
-                    {feature.description}
-                  </p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Image container + scroll timeline */}
-        <div className="relative flex items-center gap-3">
+      <div className="sticky top-0 w-full h-screen overflow-hidden flex flex-col md:flex-row items-center justify-between px-0 md:px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto gap-0 md:gap-8 lg:gap-16">
+        {/* Background Image Container for Mobile / Right Image Container for Desktop */}
+        <div className="absolute inset-0 md:relative md:inset-auto flex items-center gap-3 z-0 w-full h-full md:w-auto md:h-auto md:order-2">
           {/* Image panel */}
-          <div className="w-full md:w-[calc(50vw-5rem)] lg:w-[40vw] h-1/2 md:h-[75vh] relative rounded-3xl overflow-hidden shadow-2xl border border-slate-100 mt-4 md:mt-0">
+          <div className="w-full h-full md:w-[calc(50vw-5rem)] lg:w-[40vw] md:h-[75vh] relative md:rounded-3xl overflow-hidden md:shadow-2xl md:border md:border-slate-100">
             {features.map((feature, index) => {
               const start = index / features.length;
               const end = (index + 1) / features.length;
@@ -280,7 +205,10 @@ const FeatureScrollAnimation = () => {
                     className="w-full h-full object-cover"
                     style={{ scale }}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 via-black/40 to-transparent p-4 md:p-6 pt-12">
+                  {/* Mobile overlay for text readability */}
+                  <div className="absolute inset-0 bg-black/60 md:hidden z-0" />
+
+                  <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/90 via-black/50 to-transparent p-4 md:p-6 sm:pb-8 pt-20 z-10">
                     <p className="text-[10px] md:text-xs text-white/70 text-center font-questrial">
                       {feature.credit}
                     </p>
@@ -289,54 +217,128 @@ const FeatureScrollAnimation = () => {
               );
             })}
           </div>
+        </div>
 
-          {/* Scroll Timeline (vertical dots on the right of the image) */}
-          <div className="hidden md:flex flex-col items-center gap-3 py-2">
-            {features.map((_, index) => {
+        {/* Left: Text Content container */}
+        <div className="w-full md:w-1/2 flex flex-col justify-center h-full relative z-10 px-6 sm:px-8 md:px-0 pt-24 md:pt-0 pointer-events-none md:pointer-events-auto md:order-1">
+          <div className="mb-8 md:mb-12 pointer-events-auto">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-gasoek leading-tight">
+              <span className="text-lg sm:text-xl md:text-2xl text-white/90 md:text-tx-primary drop-shadow-md md:drop-shadow-none">
+                Demi mengurangi e-waste,
+              </span>
+              <br />
+              <span className="text-white md:text-tx-primary drop-shadow-lg md:drop-shadow-none">
+                kami menyediakan
+              </span>
+              <br />
+              <span className="text-bg-vermillion drop-shadow-lg md:drop-shadow-none">
+                platform untuk
+              </span>
+            </h2>
+          </div>
+
+          {/* Cards Container */}
+          <div className="relative h-[22rem] sm:h-80 md:h-80 w-full pointer-events-auto">
+            {features.map((feature, index) => {
               const start = index / features.length;
               const end = (index + 1) / features.length;
 
-              const dotScale = useTransform(
+              const opacity = useTransform(
                 scrollYProgress,
                 [
-                  Math.max(0, start - 0.02),
+                  Math.max(0, start - 0.05),
                   start + 0.05,
                   end - 0.05,
-                  Math.min(1, end + 0.02),
+                  Math.min(1, end + 0.05),
                 ],
-                [1, 1.6, 1.6, 1],
+                [0, 1, 1, 0],
               );
-              const dotOpacity = useTransform(
+
+              const y = useTransform(
                 scrollYProgress,
                 [
-                  Math.max(0, start - 0.02),
+                  Math.max(0, start - 0.05),
                   start + 0.05,
                   end - 0.05,
-                  Math.min(1, end + 0.02),
+                  Math.min(1, end + 0.05),
                 ],
-                [0.3, 1, 1, 0.3],
+                [30, 0, 0, -30],
               );
-              const dotBg = useTransform(scrollYProgress, (v) =>
-                v >= start && v < end ? "#C0392B" : "#CBD5E1",
+
+              const zIndex = useTransform(scrollYProgress, (v) =>
+                v >= start && v < end ? 10 : 0,
               );
 
               return (
-                <div key={index} className="flex flex-col items-center">
-                  <motion.div
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{
-                      scale: dotScale,
-                      opacity: dotOpacity,
-                      backgroundColor: dotBg,
-                    }}
-                  />
-                  {index < features.length - 1 && (
-                    <div className="w-px h-6 bg-slate-200" />
-                  )}
-                </div>
+                <motion.div
+                  key={feature.id}
+                  className="absolute top-0 left-0 w-full flex flex-col gap-4"
+                  style={{ opacity, y, zIndex }}
+                >
+                  <span className="text-xs font-bold tracking-[0.2em] text-bg-vermillion uppercase font-questrial drop-shadow-md md:drop-shadow-none">
+                    {String(index + 1).padStart(2, "0")} &mdash; Fitur
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-gasoek text-white md:text-tx-primary leading-tight flex items-center gap-3 drop-shadow-lg md:drop-shadow-none">
+                    {feature.title}
+                    {feature.isAI && (
+                      <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-bg-vermillion shrink-0" />
+                    )}
+                  </h3>
+                  <p className="text-white/90 md:text-tx-secondary leading-relaxed text-sm sm:text-base md:text-lg font-questrial max-w-md drop-shadow-md md:drop-shadow-none">
+                    {feature.description}
+                  </p>
+                </motion.div>
               );
             })}
           </div>
+        </div>
+
+        {/* Scroll Timeline (vertical dots on the right of the image) */}
+        <div className="hidden md:flex flex-col items-center gap-3 py-2 z-10">
+          {features.map((_, index) => {
+            const start = index / features.length;
+            const end = (index + 1) / features.length;
+
+            const dotScale = useTransform(
+              scrollYProgress,
+              [
+                Math.max(0, start - 0.02),
+                start + 0.05,
+                end - 0.05,
+                Math.min(1, end + 0.02),
+              ],
+              [1, 1.6, 1.6, 1],
+            );
+            const dotOpacity = useTransform(
+              scrollYProgress,
+              [
+                Math.max(0, start - 0.02),
+                start + 0.05,
+                end - 0.05,
+                Math.min(1, end + 0.02),
+              ],
+              [0.3, 1, 1, 0.3],
+            );
+            const dotBg = useTransform(scrollYProgress, (v) =>
+              v >= start && v < end ? "#C0392B" : "#CBD5E1",
+            );
+
+            return (
+              <div key={index} className="flex flex-col items-center">
+                <motion.div
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{
+                    scale: dotScale,
+                    opacity: dotOpacity,
+                    backgroundColor: dotBg,
+                  }}
+                />
+                {index < features.length - 1 && (
+                  <div className="w-px h-6 bg-slate-200" />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

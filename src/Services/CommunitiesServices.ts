@@ -25,6 +25,7 @@ export class CommunityService {
             description: "Tempat ngumpulnya para pencari cuan dan peluang bisnis sampingan di area Jakarta Pusat.",
             profilepicturl: "https://example.com/images/com-cuan.jpg",
             communityname: "Komunitas Pencari Duid",
+            bannerurl: "https://example.com/banners/com-cuan-banner.jpg",
             longitude: 107.5750,
             latitude: -6.8000,
             isPublic: true
@@ -35,6 +36,7 @@ export class CommunityService {
             description: "Forum diskusi, jual beli part, dan berbagi tips seputar perbaikan stik konsol game.",
             profilepicturl: "https://example.com/images/com-xbox.jpg",
             communityname: "Komunitas Servis Stick Xbox",
+            bannerurl: "https://example.com/banners/com-xbox-banner.jpg",
             longitude: 107.5800,
             latitude: -6.8100,
             isPublic: false
@@ -45,6 +47,7 @@ export class CommunityService {
             description: "Grup online khusus bagi para kolektor barang antik dan retro di seluruh Nusantara.",
             profilepicturl: "https://example.com/images/com-retro.jpg",
             communityname: "Kolektor Barang Retro ID",
+            bannerurl: "https://example.com/banners/com-retro-banner.jpg",
             isPublic: false
         }
     ];

@@ -163,6 +163,7 @@ export class ThriftService {
     // ==========================================
     // Menggunakan Omit untuk membuang 'itemid' dari input karena ID akan digenerate otomatis
     async createThrift(newItemData: Omit<Item, 'itemid'>): Promise<Item> {
+        // itempicturl can be a URL or a Base64 string from file upload
         const generatedId = Math.floor(1000 + Math.random() * 9000); // Generate ID acak: 1234
         
         const newItem: Item = {
