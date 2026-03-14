@@ -2,7 +2,16 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../Utils/Hooks/AuthProvider";
 import { CommunityService } from "../../Services/CommunitiesServices";
 import type { Community } from "../../Types/Community";
-import { Plus, Search, Trash2, Edit2, X, Globe, Lock, MessageSquare } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Trash2,
+  Edit2,
+  X,
+  Globe,
+  Lock,
+  MessageSquare,
+} from "lucide-react";
 import CommunityForm from "../Components/CommunityForm";
 import ThriftSkeleton from "../Components/ThriftSkeleton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,8 +22,11 @@ const CommunityPage = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingCommunity, setEditingCommunity] = useState<Community | null>(null);
-  const [selectedCommunityForPopup, setSelectedCommunityForPopup] = useState<Community | null>(null);
+  const [editingCommunity, setEditingCommunity] = useState<Community | null>(
+    null,
+  );
+  const [selectedCommunityForPopup, setSelectedCommunityForPopup] =
+    useState<Community | null>(null);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,7 +62,10 @@ const CommunityPage = () => {
   };
 
   const handleDelete = async (commId: number) => {
-    if (!user || !window.confirm("Apakah Anda yakin ingin menghapus komunitas ini?"))
+    if (
+      !user ||
+      !window.confirm("Apakah Anda yakin ingin menghapus komunitas ini?")
+    )
       return;
 
     try {
@@ -70,16 +85,16 @@ const CommunityPage = () => {
     (comm) =>
       comm.communityname.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (comm.description &&
-        comm.description.toLowerCase().includes(searchQuery.toLowerCase()))
+        comm.description.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredCommunities.length / ITEMS_PER_PAGE)
+    Math.ceil(filteredCommunities.length / ITEMS_PER_PAGE),
   );
   const paginatedCommunities = filteredCommunities.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    currentPage * ITEMS_PER_PAGE,
   );
 
   const handleSearch = (val: string) => {
@@ -96,7 +111,7 @@ const CommunityPage = () => {
               Komunitasku
             </h1>
             <p className="text-tx-secondary font-questrial">
-              Temukan dan bergabunglah dengan komunitas pecinta thrift di sekitarmu.
+              Disini kamu bisa melihat daftar komunitas yang kamu telah bentuk.
             </p>
           </div>
           <button
@@ -143,12 +158,13 @@ const CommunityPage = () => {
                 Komunitas Tidak Ditemukan
               </h3>
               <p className="text-tx-primary font-questrial max-w-md px-6 bg-white/20 p-4 rounded-lg shadow-inner">
-                Maaf, kami tidak menemukan komunitas yang sesuai. Coba gunakan kata kunci lain.
+                Maaf, kami tidak menemukan komunitas yang sesuai. Coba gunakan
+                kata kunci lain.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {paginatedCommunities.map((comm) => {
+              {paginatedCommunities.map((comm) => {
                 const fallBackPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(comm.communityname)}&background=random`;
 
                 return (
@@ -156,12 +172,14 @@ const CommunityPage = () => {
                     key={comm.communityid}
                     className="flex flex-col bg-bg-vermillion border border-bg-vermillion/50 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-bg-vermillion transition-all duration-200"
                   >
-                    <div 
+                    <div
                       className="relative aspect-video shrink-0 bg-bg-clean overflow-hidden cursor-pointer group"
                       onClick={() => setSelectedCommunityForPopup(comm)}
                     >
                       <img
-                        src={comm.bannerurl || comm.profilepicturl || fallBackPic}
+                        src={
+                          comm.bannerurl || comm.profilepicturl || fallBackPic
+                        }
                         alt={comm.communityname}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
@@ -169,7 +187,7 @@ const CommunityPage = () => {
                     </div>
 
                     {/* Content */}
-                    <div 
+                    <div
                       className="p-5 flex flex-col flex-1 bg-bg-vermillion cursor-pointer"
                       onClick={() => setSelectedCommunityForPopup(comm)}
                     >
@@ -234,14 +252,14 @@ const CommunityPage = () => {
       <AnimatePresence>
         {selectedCommunityForPopup && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedCommunityForPopup(null)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -249,15 +267,18 @@ const CommunityPage = () => {
             >
               {/* Banner */}
               <div className="relative h-48 bg-bg-clean">
-                <img 
-                  src={selectedCommunityForPopup.bannerurl || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCommunityForPopup.communityname)}&background=random`} 
-                  alt="Banner" 
-                  className="w-full h-full object-cover" 
+                <img
+                  src={
+                    selectedCommunityForPopup.bannerurl ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCommunityForPopup.communityname)}&background=random`
+                  }
+                  alt="Banner"
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-bg-vermillion via-transparent to-transparent" />
-                <button 
+                <button
                   onClick={() => setSelectedCommunityForPopup(null)}
-                  className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors"
+                  className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-lg transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -267,10 +288,13 @@ const CommunityPage = () => {
               <div className="px-8 pb-6 relative">
                 <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-10 mb-6">
                   <div className="h-24 w-24 rounded-2xl border-4 border-bg-vermillion overflow-hidden bg-bg-clean shadow-lg shrink-0">
-                    <img 
-                      src={selectedCommunityForPopup.profilepicturl || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCommunityForPopup.communityname)}&background=random`} 
-                      alt="Profile" 
-                      className="w-full h-full object-cover" 
+                    <img
+                      src={
+                        selectedCommunityForPopup.profilepicturl ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedCommunityForPopup.communityname)}&background=random`
+                      }
+                      alt="Profile"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex-1 min-w-0 pb-1">
@@ -279,11 +303,11 @@ const CommunityPage = () => {
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
                       {selectedCommunityForPopup.isPublic ? (
-                        <span className="flex items-center gap-1 text-xs font-bold text-green-500 uppercase tracking-tighter">
+                        <span className="flex items-center gap-1 text-lg font-bold text-bg-fresh">
                           <Globe size={12} /> Publik
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-xs font-bold text-orange-500 uppercase tracking-tighter">
+                        <span className="flex items-center gap-1 text-lg font-bold text-tx-accent">
                           <Lock size={12} /> Privat
                         </span>
                       )}
@@ -293,47 +317,51 @@ const CommunityPage = () => {
 
                 <div className="space-y-4">
                   <div className="bg-bg-clean p-4 rounded-xl border border-white/10 shadow-inner">
-                    <h4 className="text-xs font-gasoek text-tx-secondary uppercase mb-2">Tentang Komunitas</h4>
+                    <h4 className="text-xs font-gasoek text-tx-secondary uppercase mb-2">
+                      Tentang Komunitas
+                    </h4>
                     <p className="text-sm text-tx-primary font-questrial leading-relaxed">
-                      {selectedCommunityForPopup.description || "Tidak ada deskripsi tersedia."}
+                      {selectedCommunityForPopup.description ||
+                        "Tidak ada deskripsi tersedia."}
                     </p>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button 
+                    <button
                       onClick={() => {
                         setSelectedCommunityForPopup(null);
-                        navigate('/chats');
+                        navigate("/chats");
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-xl font-gasoek text-sm tracking-wide shadow-md hover:bg-black transition-all transform hover:-translate-y-0.5 group"
+                      className="flex-1 flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary"
                     >
-                      <MessageSquare size={18} className="group-hover:scale-110 transition-transform" />
+                      <MessageSquare size={18} />
                       Buka Komunitas
                     </button>
-                    
+
                     {user?.userid === selectedCommunityForPopup.userid && (
                       <div className="flex gap-3">
-                        <button 
+                        <button
                           onClick={() => {
                             const comm = selectedCommunityForPopup;
                             setSelectedCommunityForPopup(null);
                             handleEdit(comm);
                           }}
-                          className="px-6 py-4 bg-green-500 text-white rounded-xl font-gasoek text-sm hover:bg-green-600 transition-all shadow-md group"
+                          className="px-6 py-4 bg-bg-fresh text-tx-primary hover:bg-tx-primary hover:text-bg-fresh rounded-xl cursor-pointer font-gasoek text-sm shadow-md group"
                           title="Edit Komunitas"
                         >
-                          <Edit2 size={18} className="group-hover:scale-110 transition-transform" />
+                          <Edit2 size={18} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
-                            const commId = selectedCommunityForPopup.communityid;
+                            const commId =
+                              selectedCommunityForPopup.communityid;
                             setSelectedCommunityForPopup(null);
                             handleDelete(commId);
                           }}
-                          className="px-6 py-4 bg-red-500 text-white rounded-xl font-gasoek text-sm hover:bg-red-600 transition-all shadow-md group"
+                          className="px-6 py-4 bg-red-500 text-bg-clean cursor-pointer rounded-xl font-gasoek text-sm hover:bg-bg-clean hover:text-red-500 "
                           title="Hapus Komunitas"
                         >
-                          <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     )}
@@ -348,4 +376,4 @@ const CommunityPage = () => {
   );
 };
 
-export default CommunityPage;
+export default CommunityPage;

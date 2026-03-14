@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../Utils/Hooks/AuthProvider";
+import { LogOut } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const RootNavbar = () => {
   const location = useLocation();
@@ -27,149 +29,143 @@ const RootNavbar = () => {
 
   const isMapPage = location.pathname.startsWith("/map");
 
-  const navBgClass = isMapPage
-    ? "bg-bg-clean/95 backdrop-blur-md border border-bg-vermillion/20 rounded-full shadow-xl px-2"
-    : isScrolled
-      ? "bg-bg-clean/95 backdrop-blur-xl border-b border-bg-vermillion/30 shadow-sm"
-      : "bg-bg-clean/95 backdrop-blur-xl border-b border-bg-vermillion/30 shadow-sm";
-
   const textColorClass = "text-tx-primary";
 
   return (
     <>
-      <nav
-        className={`z-40 transition-all duration-300 ${
+      <motion.nav
+        layout
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className={`z-40 ${
           isMapPage
-            ? `absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-max max-w-7xl ${navBgClass}`
-            : `fixed top-0 left-0 right-0 ${navBgClass}`
+            ? `absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-max max-w-7xl bg-bg-clean/95 backdrop-blur-md border border-bg-vermillion/20 rounded-full shadow-xl px-2`
+            : `fixed top-0 left-0 right-0 bg-bg-clean/95 backdrop-blur-xl border-b border-bg-vermillion/30 shadow-sm`
         }`}
       >
-        <div
+        <motion.div
+          layout
           className={`mx-auto px-4 sm:px-6 lg:px-8 ${isMapPage ? "w-full" : "max-w-7xl"}`}
         >
-          <div
-            className={`flex items-center justify-between transition-all duration-300 ${isMapPage ? "h-12 gap-4 md:gap-8" : "h-16"}`}
+          <motion.div
+            layout
+            className={`flex items-center justify-between ${isMapPage ? "h-12 gap-4 md:gap-8" : "h-16"}`}
           >
             {/* Logo */}
-            <div className="flex-shrink-0">
+            <motion.div layout className="flex-shrink-0">
               <Link to="/thrifts" className="flex items-center group">
-                <img
+                <motion.img
+                  layout
                   src="/src/Assets/def/logo-large.webp"
                   alt="ThriftThrough Logo"
-                  className={`object-contain transition-all duration-300  ${
+                  className={`object-contain ${
                     isMapPage ? "h-7" : "h-10"
                   }`}
                 />
               </Link>
-            </div>
+            </motion.div>
 
             {/* Navigation Links */}
-            <div
-              className={`hidden md:flex items-center space-x-1 ${isMapPage ? "scale-90 origin-left" : ""}`}
-            >
-              {navLinks.map((link) => {
-                const isActive = location.pathname.startsWith(link.path);
-                return (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    className={`px-3 py-1.5 rounded-xl text-sm font-gasoek tracking-wide transition-all duration-300 ${
-                      isActive
-                        ? "bg-bg-fresh text-tx-primary shadow-sm border border-bg-fresh"
-                        : "text-tx-secondary hover:text-tx-primary hover:bg-tx-muted/10"
-                    }`}
-                  >
-                    {link.name}
-                  </Link>
-                );
-              })}
-            </div>
+            {!isMapPage && (
+              <div
+                className="hidden md:flex items-center space-x-1"
+              >
+                {navLinks.map((link) => {
+                  const isActive = location.pathname.startsWith(link.path);
+                  return (
+                    <Link
+                      key={link.path}
+                      to={link.path}
+                      className={`px-3 py-1.5 rounded-xl text-sm font-gasoek tracking-wide transition-all duration-300 ${
+                        isActive
+                          ? "bg-bg-fresh text-tx-primary shadow-sm border border-bg-fresh"
+                          : "text-tx-secondary hover:text-tx-primary hover:bg-tx-muted/10"
+                      }`}
+                    >
+                      {link.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Right Section (User Profile & Hamburger) */}
-            <div className="flex items-center gap-2 sm:gap-4">
+            <motion.div layout className="flex items-center gap-2 sm:gap-4">
               {/* Mobile Menu Hamburger Button */}
-              <div className="md:hidden flex items-center">
+              <div className={`${isMapPage ? "flex" : "md:hidden"} items-center`}>
                 <button
-                  onClick={() => setIsMobileMenuOpen(true)}
-                  className={`${textColorClass} opacity-80 hover:opacity-100 p-1.5 focus:outline-none focus:ring-2 focus:ring-bg-vermillion rounded-lg transition-colors`}
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className={`${textColorClass} opacity-80 hover:opacity-100 p-2 focus:outline-none focus:ring-2 focus:ring-bg-vermillion rounded-lg transition-colors`}
                   aria-label="Toggle menu"
                 >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M4 6h16M4 12h16M4 18h16"
-                    ></path>
-                  </svg>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={isMobileMenuOpen ? "close" : "open"}
+                      initial={{ opacity: 0, rotate: -90 }}
+                      animate={{ opacity: 1, rotate: 0 }}
+                      exit={{ opacity: 0, rotate: 90 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {isMobileMenuOpen ? (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                      ) : (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
                 </button>
               </div>
 
-              <div
-                className={`hidden sm:flex items-center gap-2 pl-3 border-l border-bg-vermillion/30 ${isMapPage ? "scale-90 origin-right" : ""}`}
-              >
-                <Link
-                  to="/profile"
-                  className="flex items-center gap-2 p-1 rounded-xl hover:bg-tx-muted/10 transition-all group"
-                >
-                  <div className="text-right">
-                    <p className="text-xs font-gasoek tracking-wide text-tx-primary leading-tight group-hover:text-bg-vermillion transition-colors">
-                      {user?.fullname || "User"}
-                    </p>
-                    {!isMapPage && (
-                      <p className="text-[10px] text-bg-vermillion font-questrial">
-                        {user?.userrank || "Member"}
-                      </p>
-                    )}
-                  </div>
-                  <div
-                    className={`rounded-full bg-bg-clean border-2 border-bg-vermillion/50 overflow-hidden flex-shrink-0 group-hover:border-bg-vermillion transition-colors relative cursor-pointer ${isMapPage ? "w-7 h-7" : "w-8 h-8"}`}
+              <AnimatePresence>
+                {!isMapPage && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="hidden sm:flex items-center gap-2 pl-3 border-l border-bg-vermillion/30"
                   >
-                    <img
-                      src={
-                        user?.profilepicturl ||
-                        `https://ui-avatars.com/api/?name=${user?.fullname || "User"}&background=95c079&color=fff`
-                      }
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </Link>
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2 p-1 rounded-xl hover:bg-tx-muted/10 transition-all group"
+                    >
+                      <div className="text-right">
+                        <p className="text-xs font-gasoek tracking-wide text-tx-primary leading-tight group-hover:text-bg-vermillion transition-colors">
+                          {user?.fullname || "User"}
+                        </p>
+                        <p className="text-[10px] text-bg-vermillion font-questrial">
+                          {user?.userrank || "Member"}
+                        </p>
+                      </div>
+                      <div className="rounded-full bg-bg-clean border-2 border-bg-vermillion/50 overflow-hidden flex-shrink-0 group-hover:border-bg-vermillion transition-colors relative cursor-pointer w-8 h-8">
+                        <img
+                          src={user?.profilepicturl || `https://ui-avatars.com/api/?name=${user?.fullname || "User"}&background=95c079&color=fff`}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </Link>
 
-                <button
-                  onClick={logout}
-                  className="ml-1 p-1 rounded-lg text-tx-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                  title="Logout"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+                    <button
+                      onClick={logout}
+                      className="ml-1 p-1 rounded-lg text-tx-primary hover:text-bg-fresh hover:bg-red-500/50 cursor-pointer transition-all group"
+                      title="Logout"
+                    >
+                      <LogOut />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      </motion.nav>
 
-      {/* Mobile Grid Menu Overlay - Moved outside <nav> to escape width constraints */}
+      {/* Mobile Grid Menu Overlay */}
       <div
-        className={`md:hidden fixed inset-0 z-[100] bg-tx-primary/95 backdrop-blur-2xl transition-all duration-300 transform ${
+        className={`${isMapPage ? "" : "md:hidden"} fixed inset-0 z-[100] bg-tx-primary transition-all duration-300 transform ${
           isMobileMenuOpen
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-full pointer-events-none"
@@ -183,12 +179,23 @@ const RootNavbar = () => {
         <div className="px-5 py-6 h-full flex flex-col overflow-y-auto">
           {/* Header inside popup with close button */}
           <div className="flex justify-between items-center mb-8">
-            <span className="text-xl font-gasoek tracking-wide text-bg-fresh">
-              Menu
-            </span>
+            {/* Logo */}
+            <div className="shrink-0">
+              <Link
+                onClick={() => setIsMobileMenuOpen(false)}
+                to="/"
+                className="flex items-center"
+              >
+                <img
+                  src="/src/Assets/def/logo-large.webp"
+                  alt="ThriftThrough Logo"
+                  className={`h-10 object-contain transition-all duration-300 brightness-[4]`}
+                />
+              </Link>
+            </div>
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-white/50 hover:text-white p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors"
+              className="text-bg-clean hover:text-white p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
             >
               <svg
                 className="w-6 h-6"
@@ -206,9 +213,7 @@ const RootNavbar = () => {
             </button>
           </div>
 
-          <h3 className="text-white/40 text-sm font-questrial tracking-widest mb-6 uppercase">
-            Navigation
-          </h3>
+          <h3 className="text-bg-fresh text-lg font-gasoek mb-6">Menu</h3>
           <hr className="border-t border-white/10 mb-6" />
 
           <div className="grid grid-cols-2 gap-4 pb-8">
@@ -216,10 +221,10 @@ const RootNavbar = () => {
             <Link
               to="/profile"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="col-span-2 flex items-center justify-between p-4 jagged-y bg-white/5 hover:bg-white/10 transition-all mb-4"
+              className="col-span-2 flex items-center justify-between p-4 rounded-lg bg-bg-fresh transition-all mb-2"
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full border-2 border-white/20 overflow-hidden flex-shrink-0">
+                <div className="w-12 h-12 rounded-full border-2 border-tx-primary/20 overflow-hidden flex-shrink-0">
                   <img
                     src={
                       user?.profilepicturl ||
@@ -230,17 +235,17 @@ const RootNavbar = () => {
                   />
                 </div>
                 <div className="text-left">
-                  <p className="text-base font-gasoek text-white tracking-wide">
+                  <p className="text-base font-gasoek text-tx-primary tracking-wide">
                     {user?.fullname || "User"}
                   </p>
-                  <p className="text-xs font-questrial text-white/50">
+                  <p className="text-xs font-questrial text-tx-primary/60">
                     View Profile
                   </p>
                 </div>
               </div>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-white/40"
+                className="h-6 w-6 text-tx-primary/60"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -253,6 +258,7 @@ const RootNavbar = () => {
                 />
               </svg>
             </Link>
+
             {navLinks.map((link) => {
               const isActive = location.pathname.startsWith(link.path);
               return (
@@ -260,20 +266,15 @@ const RootNavbar = () => {
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex flex-col items-center justify-center p-6 jagged-y transition-all ${
-                    isActive
-                      ? "bg-bg-vermillion/30 shadow-[0_0_15px_rgba(149,192,121,0.2)]"
-                      : "bg-white/5 hover:bg-white/10"
+                  className={`flex rounded-lg flex-col items-center justify-center p-6 transition-all ${
+                    isActive ? "bg-bg-clean" : "bg-bg-fresh"
                   }`}
                 >
                   <span
-                    className={`text-lg font-gasoek tracking-wide ${isActive ? "text-white" : "text-slate-300"}`}
+                    className={`text-lg font-questrial tracking-wide ${isActive ? "text-bg-vermillion font-bold" : "text-tx-primary"}`}
                   >
                     {link.name}
                   </span>
-                  {isActive && (
-                    <span className="w-8 h-1 bg-bg-vermillion rounded-full mt-3"></span>
-                  )}
                 </Link>
               );
             })}
@@ -284,23 +285,12 @@ const RootNavbar = () => {
                 setIsMobileMenuOpen(false);
                 logout();
               }}
-              className="flex items-center justify-center gap-2 p-4 jagged-y bg-red-500/10 hover:bg-red-500/20 transition-all group"
+              className="col-span-2 mt-2 flex items-center justify-center gap-2 p-4 rounded-lg text-bg-fresh bg-red-500 hover:bg-bg-fresh hover:text-red-500 cursor-pointer transition-all group"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-red-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-              <span className="text-lg font-gasoek text-red-400">Logout</span>
+              <LogOut className="w-6 h-6" />
+              <span className="text-lg font-questrial tracking-wide font-bold ">
+                Logout
+              </span>
             </button>
           </div>
         </div>

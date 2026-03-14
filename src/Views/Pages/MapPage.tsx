@@ -10,82 +10,19 @@ import Map, {
 import "maplibre-gl/dist/maplibre-gl.css";
 import useSupercluster from "use-supercluster";
 import { AnimatePresence } from "framer-motion";
-import { UsersRound, ShoppingBasket, Filter } from "lucide-react";
+import { Filter } from "lucide-react";
 
 import PinDetailCard from "../Components/PinDetailCard";
-import { ThriftService } from "../../Services/ThriftsServices";
+import CommunityPins from "../Components/CommunityPins";
+import ItemPins from "../Components/ItemPins";
+import UserPin from "../Components/UserPin";
+import ItemDetailPopup from "../Components/ItemDetailPopup";
+import { ThriftService, type Item } from "../../Services/ThriftsServices";
 import { CommunityService } from "../../Services/CommunitiesServices";
 
 // ==========================================
-// 1. PIN COMPONENTS
+// 1. PIN COMPONENTS (RESOURCES MOVED TO COMPONENTS FOLDER)
 // ==========================================
-
-interface CommunityPinsProps {
-  longitude: number;
-  latitude: number;
-  name?: string;
-}
-
-const CommunityPins: React.FC<CommunityPinsProps> = ({
-  longitude,
-  latitude,
-  name,
-}) => {
-  return (
-    <Marker longitude={longitude} latitude={latitude} anchor="center">
-      <div className="bg-blue-600 p-2 rounded-full shadow-lg border-2 border-white cursor-pointer hover:scale-110 hover:bg-blue-700 transition-all group relative">
-        <UsersRound size={20} className="text-white" />
-
-        {name && (
-          <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            {name}
-          </span>
-        )}
-      </div>
-    </Marker>
-  );
-};
-
-interface ItemPinsProps {
-  longitude: number;
-  latitude: number;
-  name?: string;
-}
-
-const ItemPins: React.FC<ItemPinsProps> = ({ longitude, latitude, name }) => {
-  return (
-    <Marker longitude={longitude} latitude={latitude} anchor="center">
-      <div className="bg-orange-500 p-2 rounded-full shadow-lg border-2 border-white cursor-pointer hover:scale-110 hover:bg-orange-600 transition-all group relative">
-        <ShoppingBasket size={20} className="text-white" />
-
-        {name && (
-          <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            {name}
-          </span>
-        )}
-      </div>
-    </Marker>
-  );
-};
-
-interface UserPinProps {
-  longitude: number;
-  latitude: number;
-}
-
-const UserPin: React.FC<UserPinProps> = ({ longitude, latitude }) => {
-  return (
-    <Marker longitude={longitude} latitude={latitude} anchor="center">
-      <div className="relative flex items-center justify-center cursor-pointer group">
-        <div className="absolute w-8 h-8 bg-blue-500 rounded-full opacity-75 animate-ping"></div>
-        <div className="relative w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-md z-10"></div>
-        <div className="absolute bottom-full mb-2 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
-          Lokasi Anda
-        </div>
-      </div>
-    </Marker>
-  );
-};
 
 // ==========================================
 // 2. MAIN MAP PAGE
@@ -114,6 +51,7 @@ const MapPage: React.FC = () => {
     [number, number, number, number] | undefined
   >(undefined);
   const [zoom, setZoom] = useState(13);
+  const [isControlsVisible, setIsControlsVisible] = useState(true);
 
   const [userLocation, setUserLocation] = useState<{
     lng: number;
@@ -243,6 +181,38 @@ const MapPage: React.FC = () => {
     type: string;
   } | null>(null);
 
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [aiInsights, setAIInsights] = useState<any>(null);
+  const [isAILoading, setIsAILoading] = useState(false);
+
+  const handleItemClick = async (id: number, lng: number, lat: number) => {
+    setSelectedItem(null);
+    setAIInsights(null);
+    setIsAILoading(true);
+
+    mapRef.current?.flyTo({
+      center: [lng, lat - 0.002],
+      zoom: 15,
+      duration: 800,
+    });
+
+    const thriftService = new ThriftService();
+    const item = await thriftService.getThriftDetailById(id);
+    if (item) {
+      setSelectedItem(item);
+      // Mock AI Insights
+      setTimeout(() => {
+        setAIInsights({
+          predictedMarketPrice: item.itemprice + 50000,
+          carbonFootprintSavings: 2.5,
+        });
+        setIsAILoading(false);
+      }, 1000);
+    } else {
+      setIsAILoading(false);
+    }
+  };
+
   const maskGeoJSON = useMemo(() => {
     const centerLat = userLocation?.lat ?? -6.7984;
     const centerLng = userLocation?.lng ?? 107.5714;
@@ -310,86 +280,124 @@ const MapPage: React.FC = () => {
         )}
 
         {/* --- CONTROLS OVERLAY --- */}
-        <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md border border-gray-200 flex flex-col gap-4 w-72">
-          {/* Radius Control */}
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center">
-              <label className="text-sm font-semibold text-gray-700">
-                Radius Pencarian (km)
-              </label>
-              <input
-                type="number"
-                min="0.1"
-                max="200"
-                step="0.1"
-                value={radius}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (!isNaN(val) && val >= 0.1 && val <= 200) setRadius(val);
-                }}
-                className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <input
-              type="range"
-              min="0.1"
-              max="200"
-              step="0.1"
-              value={radius}
-              onChange={(e) => setRadius(Number(e.target.value))}
-              className="w-full accent-blue-600 cursor-pointer"
-            />
-          </div>
+        <div
+          className={`absolute bottom-4 left-4 z-10 bg-bg-clean/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-bg-vermillion/30 flex flex-col transition-all duration-300 overflow-hidden font-questrial ${
+            isControlsVisible
+              ? "w-80 p-6"
+              : "w-12 h-12 p-0 justify-center items-center"
+          }`}
+        >
+          {isControlsVisible ? (
+            <>
+              {/* Header with Close Button */}
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-sm font-gasoek font-normal tracking-wide text-tx-primary">
+                  Pencarian
+                </span>
+                <button
+                  onClick={() => setIsControlsVisible(false)}
+                  className="p-1.5 rounded-lg hover:bg-bg-fresh text-tx-muted hover:text-bg-vermillion transition-all"
+                >
+                  <Filter size={18} />
+                </button>
+              </div>
 
-          <hr className="border-gray-200" />
+              {/* Radius Control */}
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-gasoek font-normal tracking-wide text-tx-muted uppercase">
+                    Radius (km)
+                  </label>
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="200"
+                    step="0.1"
+                    value={radius}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (!isNaN(val) && val >= 0.1 && val <= 200)
+                        setRadius(val);
+                    }}
+                    className="w-16 px-2 py-1.5 text-xs font-gasoek font-normal tracking-wide bg-bg-fresh border border-bg-fresh/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-bg-vermillion/50 transition-all"
+                  />
+                </div>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="200"
+                  step="0.1"
+                  value={radius}
+                  onChange={(e) => setRadius(Number(e.target.value))}
+                  className="w-full h-1.5 bg-bg-vermillion/20 rounded-lg appearance-none cursor-pointer accent-bg-vermillion"
+                />
+              </div>
 
-          {/* Visibility Toggles */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Filter size={16} /> Tampilkan:
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showCommunities}
-                onChange={() => setShowCommunities(!showCommunities)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
-              />
-              <span className="text-sm text-gray-700">Komunitas</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showItems}
-                onChange={() => setShowItems(!showItems)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
-              />
-              <span className="text-sm text-gray-700">Barang Penjual</span>
-            </label>
-            <div className="flex items-center gap-2 mt-1">
-              <button
-                className="text-xs text-blue-600 hover:text-blue-800 underline disabled:text-gray-400 disabled:no-underline cursor-pointer"
-                onClick={() => {
-                  setShowCommunities(true);
-                  setShowItems(true);
-                }}
-                disabled={showCommunities && showItems}
-              >
-                Semua
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
-                className="text-xs text-red-600 hover:text-red-800 underline disabled:text-gray-400 disabled:no-underline cursor-pointer"
-                onClick={() => {
-                  setShowCommunities(false);
-                  setShowItems(false);
-                }}
-                disabled={!showCommunities && !showItems}
-              >
-                Sembunyikan
-              </button>
-            </div>
-          </div>
+              <hr className="border-bg-vermillion/10 my-1" />
+
+              {/* Visibility Toggles */}
+              <div className="flex flex-col gap-4">
+                <label className="text-xs font-gasoek font-normal tracking-wide text-tx-muted uppercase flex items-center gap-2">
+                  Tampilkan:
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={showCommunities}
+                      onChange={() => setShowCommunities(!showCommunities)}
+                      className="w-5 h-5 accent-bg-vermillion bg-bg-fresh border-bg-fresh/50 rounded-lg cursor-pointer transition-all"
+                    />
+                    <span className="text-sm font-medium text-tx-secondary group-hover:text-tx-primary transition-colors">
+                      Komunitas
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={showItems}
+                      onChange={() => setShowItems(!showItems)}
+                      className="w-5 h-5 accent-bg-vermillion bg-bg-fresh border-bg-fresh/50 rounded-lg cursor-pointer transition-all"
+                    />
+                    <span className="text-sm font-medium text-tx-secondary group-hover:text-tx-primary transition-colors">
+                      Barang Penjual
+                    </span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 mt-2 pt-3 border-t border-bg-vermillion/5">
+                  <button
+                    className="text-[11px] font-gasoek font-normal tracking-wide text-bg-vermillion hover:bg-bg-vermillion/10 px-2 py-1 rounded-md transition-all disabled:text-gray-400 disabled:no-underline cursor-pointer uppercase"
+                    onClick={() => {
+                      setShowCommunities(true);
+                      setShowItems(true);
+                    }}
+                    disabled={showCommunities && showItems}
+                  >
+                    Semua
+                  </button>
+                  <span className="text-bg-vermillion/20 font-light">|</span>
+                  <button
+                    className="text-[11px] font-gasoek font-normal tracking-wide text-tx-muted hover:bg-tx-muted/10 px-2 py-1 rounded-md transition-all disabled:opacity-30 cursor-pointer uppercase"
+                    onClick={() => {
+                      setShowCommunities(false);
+                      setShowItems(false);
+                    }}
+                    disabled={!showCommunities && !showItems}
+                  >
+                    Sembunyikan
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={() => setIsControlsVisible(true)}
+              className="w-full h-full flex items-center justify-center text-bg-vermillion hover:bg-bg-fresh transition-all"
+              title="Tampilkan Filter"
+            >
+              <Filter size={20} />
+            </button>
+          )}
         </div>
 
         {/* --- RADIUS MASK OVERLAY --- */}
@@ -406,7 +414,7 @@ const MapPage: React.FC = () => {
             id="mask-outline-layer"
             type="line"
             paint={{
-              "line-color": "#3b82f6",
+              "line-color": "#eb503c",
               "line-width": 2,
               "line-dasharray": [4, 4],
             }}
@@ -430,7 +438,7 @@ const MapPage: React.FC = () => {
                   anchor="center"
                 >
                   <div
-                    className="bg-blue-600 text-white flex items-center justify-center font-bold rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-blue-700 transition-colors"
+                    className="bg-bg-vermillion text-white flex items-center justify-center font-gasoek font-normal tracking-wide rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-bg-vermillion/90 transition-colors"
                     style={{
                       width: `${10 + (pointCount / Math.max(communities.length, 1)) * 30}px`,
                       height: `${10 + (pointCount / Math.max(communities.length, 1)) * 30}px`,
@@ -502,7 +510,7 @@ const MapPage: React.FC = () => {
                   anchor="center"
                 >
                   <div
-                    className="bg-orange-500 text-white flex items-center justify-center font-bold rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-orange-600 transition-colors"
+                    className="bg-bg-fresh text-tx-primary flex items-center justify-center font-gasoek font-normal tracking-wide rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-bg-fresh/90 transition-colors"
                     style={{
                       width: `${10 + (pointCount / Math.max(items.length, 1)) * 30}px`,
                       height: `${10 + (pointCount / Math.max(items.length, 1)) * 30}px`,
@@ -535,16 +543,7 @@ const MapPage: React.FC = () => {
                 key={`item-wrapper-${pinData.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedPin({
-                    id: pinData.id,
-                    name: pinData.name,
-                    type: "item",
-                  });
-                  mapRef.current?.flyTo({
-                    center: [lng, lat - 0.002],
-                    zoom: 15,
-                    duration: 800,
-                  });
+                  handleItemClick(pinData.id, lng, lat);
                 }}
               >
                 <ItemPins longitude={lng} latitude={lat} name={pinData.name} />
@@ -553,7 +552,7 @@ const MapPage: React.FC = () => {
           })}
       </Map>
 
-      {/* RENDER PIN DETAIL CARD */}
+      {/* RENDER PIN DETAIL CARD (For Communities) */}
       <AnimatePresence>
         {selectedPin && (
           <PinDetailCard
@@ -562,6 +561,13 @@ const MapPage: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      <ItemDetailPopup
+        selectedItem={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        aiInsights={aiInsights}
+        isAILoading={isAILoading}
+      />
     </div>
   );
 };
