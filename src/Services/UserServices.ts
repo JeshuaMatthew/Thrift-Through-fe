@@ -1,88 +1,70 @@
-// DELETE USER own data 
-// GET USER DETAIL BY ID
-// GET ALL USERS IN COMMUNITY
-
 import type { User } from "../Types/User";
+import AxiosInstance from "../Utils/AxiosInstance";
+import { formatImageUrl } from "../Utils/FormatUrl";
+
+// Helper function to map backend user data to frontend User interface
+const mapUser = (data: any): User => {
+    return {
+        userid: data.user_id,
+        fullname: data.full_name,
+        username: data.user_name,
+        email: data.email,
+        phonenum: data.phone_num || '',
+        userrank: data.user_rank || 'Bronze',
+        userpoint: data.user_point || 0,
+        profilepicturl: formatImageUrl(data.profile_pict_url),
+        bannerimgurl: formatImageUrl(data.banner_img_url)
+    };
+};
 
 export class UserService {
-    // Simulasi Database / State menggunakan data JSON yang Anda berikan
-    private users: User[] = [
-        {
-            "userid": 101,
-            "fullname": "Budi Santoso",
-            "username": "budisans99",
-            "profilepicturl": "https://i.pravatar.cc/150?u=budisans99",
-            "email": "budi.santoso@example.com",
-            "phonenum": "+6281234567890",
-            "userrank": "Gold",
-            "userpoint": 2500,
-            "bannerimgurl": "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6"
-        },
-        {
-            "userid": 102,
-            "fullname": "Siti Aminah",
-            "username": "sitiaminah",
-            "profilepicturl": "https://i.pravatar.cc/150?u=sitiaminah",
-            "email": "siti.aminah@example.com",
-            "phonenum": "+6289876543210",
-            "userrank": "Silver",
-            "userpoint": 1250,
-            "bannerimgurl": "https://images.unsplash.com/photo-1557683316-973673baf926"
-        },
-        {
-            "userid": 103,
-            "fullname": "Andi Darmawan",
-            "username": "andydrmwn",
-            "profilepicturl": "https://i.pravatar.cc/150?u=andydrmwn",
-            "email": "andi.darmawan@example.com",
-            "phonenum": "+6285555555555",
-            "userrank": "Bronze",
-            "userpoint": 450,
-            "bannerimgurl": "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d"
-        }
-    ];
-
     /**
      * 1. GET ALL USERS IN COMMUNITY
-     * Mengambil semua data user.
-     * (Catatan: Karena di JSON belum ada field 'community_id', asumsinya 
-     * semua user di dalam array ini adalah satu komunitas).
+     * Mengambil semua data user dari backend.
      */
-    async getAllUsersInCommunity(): Promise<User[]> {
-        // Mengembalikan duplikat array agar data asli terlindungi dari mutasi langsung
-        return [...this.users]; 
+    async getAllUsers(): Promise<User[]> {
+        try {
+            const response = await AxiosInstance.get("/users");
+            if (Array.isArray(response.data)) {
+                return response.data.map(mapUser);
+            }
+            return [];
+        } catch (error) {
+            console.error("Error fetching users:", error);
+            return [];
+        }
     }
 
-    /**
-     * 2. GET USER DETAIL BY ID
-     * Mencari detail user berdasarkan userid.
-     */
     async getUserById(userId: number): Promise<User | null> {
-        const user = this.users.find(u => u.userid === userId);
-        return user ? user : null;
+        try {
+            const response = await AxiosInstance.get(`/users/${userId}`);
+            if (response.data) {
+                return mapUser(response.data);
+            }
+            return null;
+        } catch (error) {
+            const allUsers = await this.getAllUsers();
+            return allUsers.find(u => u.userid === userId) || null;
+        }
     }
 
     /**
      * 3. DELETE USER own data
-     * Menghapus data akun sendiri. Dalam praktiknya, `currentUserId` 
-     * biasanya didapat dari session atau token JWT yang sedang login.
      */
-    async deleteOwnData(currentUserId: number): Promise<{ success: boolean; message: string }> {
-        const userIndex = this.users.findIndex(u => u.userid === currentUserId);
-
-        if (userIndex === -1) {
+    async deleteOwnData(_currentUserId: number): Promise<{ success: boolean; message: string }> {
+        try {
+            // Note: The backend deleteItem is for items. 
+            // The userRoutes doesn't have a direct delete user yet, but assuming we might add it or use /users/me
+            const response = await AxiosInstance.delete(`/users/me`);
+            return { 
+                success: true, 
+                message: response.data.message || "Akun dan data Anda berhasil dihapus." 
+            };
+        } catch (error: any) {
             return { 
                 success: false, 
-                message: "Aksi ditolak: User tidak ditemukan." 
+                message: error.response?.data?.error || "Gagal menghapus akun." 
             };
         }
-
-        // Menghapus 1 user dari array berdasarkan index
-        this.users.splice(userIndex, 1);
-        
-        return { 
-            success: true, 
-            message: "Akun dan data Anda berhasil dihapus dari komunitas." 
-        };
     }
-}
+}

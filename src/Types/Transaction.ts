@@ -7,4 +7,6 @@ export interface Transaction {
     finalprice: number;
     transactiontype: string;
     status: string;
+    longitude?: number;
+    latitude?: number;
 }

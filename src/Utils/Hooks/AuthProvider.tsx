@@ -2,12 +2,14 @@ import { createContext, type ReactNode, useContext, useState, useEffect } from "
 import { AuthService } from "../../Services/AuthServices";
 import type { User } from "../../Types/User";
 import type { Login } from "../../Types/Login";
+import type { RegisterData } from "../../Types/Register";
 
 type AuthContextType = {
   isAuthenticated: boolean;
   isLoading: boolean; 
   user: User | null;  
   login: (credentials: Login) => Promise<{ success: boolean; message: string }>; 
+  register: (data: RegisterData) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
 };
 
@@ -56,6 +58,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { success: res.success, message: res.message };
   };
 
+  const register = async (data: RegisterData) => {
+    const res = await authService.register(data);
+    return { success: res.success, message: res.message };
+  };
+
   const logout = async () => {
     try {
       setIsLoading(true);
@@ -70,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, register, logout }}>
       {isLoading ? <div>Loading Authentication...</div> : children}
     </AuthContext.Provider>
   );

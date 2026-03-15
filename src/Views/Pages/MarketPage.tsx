@@ -19,16 +19,19 @@ const MarketPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
-  const ITEMS_PER_PAGE = 12;
+  const [sortBy, setSortBy] = useState("item_id");
+  const [order, setOrder] = useState("DESC");
 
   const categories = [
     "All",
-    "Pakaian",
-    "Elektronik",
-    "Furniture",
-    "Otomotif",
+    "Gadget",
+    "Perangkat Visual",
+    "Perangkat Audio",
+    "Perangkat Rumah Tangga",
     "Lainnya",
   ];
 
@@ -37,19 +40,16 @@ const MarketPage = () => {
       setIsLoading(true);
       try {
         const thriftService = new ThriftService();
-        const userService = new UserService();
-        // Artificial delay removed for better feel, or kept short
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        const marketItems = await thriftService.getMarketThrifts(user.userid);
-
-        const itemsWithSellers = await Promise.all(
-          marketItems.map(async (item) => {
-            const seller = await userService.getUserById(item.userid);
-            return { ...item, seller: seller || undefined };
-          }),
-        );
-
-        setItems(itemsWithSellers);
+        const { items: marketItems, meta } = await thriftService.getOtherItems({
+          page: currentPage,
+          limit: itemsPerPage,
+          search: searchQuery,
+          category: selectedCategory === "All" ? undefined : selectedCategory,
+          sortBy,
+          order,
+        });
+        setItems(marketItems);
+        setTotalPages(meta?.totalPages || 1);
       } catch (error) {
         console.error("Failed to fetch market items:", error);
       } finally {
@@ -58,27 +58,21 @@ const MarketPage = () => {
     }
   };
 
+  const handleSellerClick = async (userId: number) => {
+    try {
+      const userService = new UserService();
+      const seller = await userService.getUserById(userId);
+      if (seller) {
+        setSelectedUser(seller);
+      }
+    } catch (error) {
+      console.error("Failed to fetch seller details:", error);
+    }
+  };
+
   useEffect(() => {
     fetchMarketItems();
-  }, [user]);
-
-  const filteredItems = items.filter((item) => {
-    const matchesSearch = item.itemname
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All" || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredItems.length / ITEMS_PER_PAGE),
-  );
-  const paginatedItems = filteredItems.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
+  }, [user, currentPage, itemsPerPage, searchQuery, selectedCategory, sortBy, order]);
 
   // Reset to page 1 when filter/search changes
   const handleSearch = (val: string) => {
@@ -87,6 +81,21 @@ const MarketPage = () => {
   };
   const handleCategory = (cat: string) => {
     setSelectedCategory(cat);
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPage = (val: number) => {
+    setItemsPerPage(val);
+    setCurrentPage(1);
+  };
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setOrder(order === "ASC" ? "DESC" : "ASC");
+    } else {
+      setSortBy(field);
+      setOrder("DESC");
+    }
     setCurrentPage(1);
   };
 
@@ -100,11 +109,11 @@ const MarketPage = () => {
             dijajakan oleh pengguna lain.
           </p>
         </div>
-        {/* Filters and Search */}
+        {/* Filters, Search, and Pagination Limit */}
         <div className="mb-10 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
             {/* Search */}
-            <div className="relative flex-grow group">
+            <div className="relative grow group w-full md:w-auto">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="w-5 h-5 text-tx-muted group-focus-within:text-bg-vermillion transition-colors" />
               </div>
@@ -117,22 +126,71 @@ const MarketPage = () => {
               />
             </div>
 
-            {/* Category Pills */}
-            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-              {categories.map((cat) => (
+            {/* Pagination Limit Selector */}
+            <div className="flex items-center gap-2 bg-bg-vermillion/10 p-1.5 rounded-2xl border border-bg-vermillion/20">
+              <span className="text-[10px] font-gasoek text-tx-muted uppercase px-2">
+                Tampilkan:
+              </span>
+              {[8, 12, 16, 24].map((limit) => (
                 <button
-                  key={cat}
-                  onClick={() => handleCategory(cat)}
-                  className={`px-5 py-3 rounded-2xl text-sm tracking-wide whitespace-nowrap transition-all border font-gasoek ${
-                    selectedCategory === cat
-                      ? "bg-bg-fresh border-bg-fresh/50 text-tx-primary shadow-md"
-                      : "bg-bg-vermillion border-bg-vermillion/50 text-tx-primary hover:bg-bg-vermillion/80 shadow-sm"
+                  key={limit}
+                  onClick={() => handleItemsPerPage(limit)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-gasoek transition-all ${
+                    itemsPerPage === limit
+                      ? "bg-bg-vermillion text-white shadow-md scale-105"
+                      : "text-tx-secondary hover:bg-bg-vermillion/20"
                   }`}
                 >
-                  {cat}
+                  {limit}
                 </button>
               ))}
             </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-2 bg-bg-vermillion/10 p-1.5 rounded-2xl border border-bg-vermillion/20">
+              <span className="text-[10px] font-gasoek text-tx-muted uppercase px-2">
+                Urutkan:
+              </span>
+              {[
+                { label: "Terbaru", field: "item_id" },
+                { label: "Harga", field: "price" },
+                { label: "Nama", field: "item_name" },
+              ].map((s) => (
+                <button
+                  key={s.field}
+                  onClick={() => handleSort(s.field)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-gasoek transition-all flex items-center gap-1 ${
+                    sortBy === s.field
+                      ? "bg-bg-vermillion text-white shadow-md scale-105"
+                      : "text-tx-secondary hover:bg-bg-vermillion/20"
+                  }`}
+                >
+                  {s.label}
+                  {sortBy === s.field && (
+                    <span className="text-[8px]">
+                      {order === "ASC" ? "▲" : "▼"}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Pills */}
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => handleCategory(cat)}
+                className={`px-5 py-3 rounded-2xl text-sm tracking-wide whitespace-nowrap transition-all border font-gasoek ${
+                  selectedCategory === cat
+                    ? "bg-bg-fresh border-bg-fresh/50 text-tx-primary shadow-md"
+                    : "bg-bg-vermillion border-bg-vermillion/50 text-tx-primary hover:bg-bg-vermillion/80 shadow-sm"
+                }`}
+              >
+                {cat === "All" ? "Semua" : cat}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -140,11 +198,11 @@ const MarketPage = () => {
         <div>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
+              {[...Array(itemsPerPage)].map((_, i) => (
                 <ThriftSkeleton key={i} />
               ))}
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="w-full py-24 flex flex-col items-center justify-center text-center bg-bg-vermillion rounded-xl border border-bg-vermillion/50 shadow-sm">
               <div className="w-25 h-25 mb-6 rounded-lg bg-bg-fresh flex items-center justify-center text-tx-primary ">
                 <span className="text-3xl font-black font-questrial">
@@ -161,13 +219,13 @@ const MarketPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedItems.map((item) => (
+              {items.map((item) => (
                 <div
                   key={item.itemid}
                   className="flex flex-col bg-bg-vermillion border border-bg-vermillion/50 rounded-xl overflow-hidden shadow-sm cursor-pointer hover:shadow-md hover:border-bg-vermillion transition-all duration-200"
                   onClick={() => setSelectedItem(item)}
                 >
-                  <div className="relative aspect-[4/5] overflow-hidden bg-bg-vermillion shrink-0">
+                  <div className="relative aspect-4/5 overflow-hidden bg-bg-vermillion shrink-0">
                     <img
                       src={item.itempicturl}
                       alt={item.itemname}
@@ -187,31 +245,32 @@ const MarketPage = () => {
                       {item.itemname}
                     </h3>
 
-                    <div className="mb-4 bg-bg-fresh px-3 py-2 rounded-xl shadow-sm border border-bg-fresh/50 text-center">
+                    <div className={`mb-4 ${item.transaction_type === 'Barter' ? 'bg-bg-vermillion border-bg-vermillion/50' : 'bg-bg-fresh border-bg-fresh/50'} px-3 py-2 rounded-xl shadow-sm border text-center`}>
                       <span className="text-lg font-gasoek text-tx-primary">
-                        Rp {item.itemprice.toLocaleString("id-ID")}
+                        {item.transaction_type === 'Barter' ? 'BARTER' : `Rp ${item.itemprice.toLocaleString("id-ID")}`}
                       </span>
                     </div>
 
-                    {/* Seller Info */}
-                    {item.seller && (
-                      <div
-                        className="flex items-center gap-2 mt-auto cursor-pointer hover:bg-white/20 p-1.5 -ml-1.5 rounded-lg transition-colors border border-transparent hover:border-white/30"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedUser(item.seller!);
-                        }}
-                      >
-                        <img
-                          src={item.seller.profilepicturl}
-                          alt={item.seller.fullname}
-                          className="w-6 h-6 rounded-full border border-white/50 object-cover"
-                        />
-                        <span className="text-xs text-tx-primary font-questrial font-bold truncate">
-                          {item.seller.fullname}
-                        </span>
-                      </div>
-                    )}
+                    {/* Seller Info Trigger */}
+                    <div
+                      className="flex items-center gap-2 mt-auto cursor-pointer hover:bg-white/20 p-1.5 -ml-1.5 rounded-lg transition-colors border border-transparent hover:border-white/30"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSellerClick(item.userid);
+                      }}
+                    >
+                      <img
+                        src={
+                          item.seller_profile_pict ||
+                          `https://ui-avatars.com/api/?name=${item.seller_name}&background=random`
+                        }
+                        alt={item.seller_name}
+                        className="w-6 h-6 rounded-full border border-white/50 object-cover bg-white"
+                      />
+                      <span className="text-xs text-tx-primary font-questrial font-bold truncate">
+                        {item.seller_name || "Lihat Penjual"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -219,67 +278,78 @@ const MarketPage = () => {
           )}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-12 flex items-center justify-center gap-2 flex-wrap">
-            {/* Prev */}
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-tx-secondary font-questrial text-sm font-bold shadow-sm hover:border-bg-vermillion/50 hover:text-bg-vermillion transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Sebelumnya
-            </button>
-
-            {/* Page numbers */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        {/* Pagination & Page Info */}
+        {items.length > 0 && (
+          <div className="mt-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+            <div className="flex items-center justify-start gap-2 flex-wrap order-1 md:order-1">
+              {/* Prev */}
               <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-xl text-sm font-gasoek transition-all border ${
-                  currentPage === page
-                    ? "bg-bg-vermillion border-bg-vermillion text-white shadow-md"
-                    : "bg-white border-slate-200 text-tx-secondary hover:border-bg-vermillion/40 hover:text-bg-vermillion shadow-sm"
-                }`}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-tx-secondary font-questrial shadow-sm hover:border-bg-vermillion/50 hover:text-bg-vermillion transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
+                title="Sebelumnya"
               >
-                {page}
+                <svg
+                  className="w-5 h-5 transition-transform group-hover:-translate-x-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
               </button>
-            ))}
 
-            {/* Next */}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-tx-secondary font-questrial text-sm font-bold shadow-sm hover:border-bg-vermillion/50 hover:text-bg-vermillion transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Selanjutnya
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-xl text-sm font-gasoek transition-all border ${
+                      currentPage === page
+                        ? "bg-bg-vermillion border-bg-vermillion text-white shadow-md scale-110 z-10"
+                        : "bg-white border-slate-200 text-tx-secondary hover:border-bg-vermillion/40 hover:text-bg-vermillion shadow-sm"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+
+              {/* Next */}
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-tx-secondary font-questrial shadow-sm hover:border-bg-vermillion/50 hover:text-bg-vermillion transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
+                title="Selanjutnya"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
+                <svg
+                  className="w-5 h-5 transition-transform group-hover:translate-x-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Page Info Info */}
+            <div className="text-[10px] font-gasoek text-tx-muted uppercase tracking-wider bg-bg-fresh px-4 py-2 rounded-full border border-bg-fresh/50 shadow-inner order-2 md:order-2">
+              Halaman <span className="text-bg-vermillion">{currentPage}</span> dari <span className="text-tx-primary">{totalPages}</span>
+            </div>
           </div>
         )}
       </div>

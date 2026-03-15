@@ -11,11 +11,16 @@ import {
   Globe,
   Lock,
   MessageSquare,
+  Users,
+  UserMinus,
+  Check,
 } from "lucide-react";
 import CommunityForm from "../Components/CommunityForm";
 import ThriftSkeleton from "../Components/ThriftSkeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import UserDetailPopup from "../Components/UserDetailPopup";
+import type { User } from "../../Types/User";
 
 const CommunityPage = () => {
   const { user } = useAuth();
@@ -30,16 +35,27 @@ const CommunityPage = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 12;
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortBy, setSortBy] = useState("community_id");
+  const [order, setOrder] = useState("DESC");
+  const [members, setMembers] = useState<any[]>([]);
+  const [isManagingMembers, setIsManagingMembers] = useState(false);
+  const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null);
 
   const fetchCommunities = async () => {
     setIsLoading(true);
     try {
       const commService = new CommunityService();
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const allComms = await commService.getAllCommunities();
-      const publicComms = allComms.filter((c) => c.isPublic !== false);
-      setCommunities(publicComms);
+      const { communities: allComms, meta } = await commService.getMyCommunities({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchQuery,
+        sortBy,
+        order
+      });
+      setCommunities(allComms);
+      setTotalPages(meta?.totalPages || 1);
     } catch (error) {
       console.error("Failed to fetch communities:", error);
     } finally {
@@ -49,7 +65,33 @@ const CommunityPage = () => {
 
   useEffect(() => {
     fetchCommunities();
-  }, [user]);
+  }, [user, currentPage, itemsPerPage, searchQuery, sortBy, order]);
+
+  const fetchMembers = async (commId: number) => {
+    try {
+      const commService = new CommunityService();
+      const data = await commService.getCommunityMembers(commId);
+      setMembers(data);
+    } catch (error) {
+      console.error("Failed to fetch members:", error);
+    }
+  };
+
+
+  const handleUpdateMember = async (memberEntryId: number, status: string) => {
+    if (!selectedCommunityForPopup) return;
+    try {
+      const commService = new CommunityService();
+      const res = await commService.updateMemberStatus(selectedCommunityForPopup.communityid, memberEntryId, status);
+      if (res.success) {
+        await fetchMembers(selectedCommunityForPopup.communityid);
+      } else {
+        alert(res.message);
+      }
+    } catch (error) {
+      alert("Gagal mengubah status member");
+    }
+  };
 
   const handleAddNew = () => {
     setEditingCommunity(null);
@@ -81,24 +123,23 @@ const CommunityPage = () => {
     }
   };
 
-  const filteredCommunities = communities.filter(
-    (comm) =>
-      comm.communityname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (comm.description &&
-        comm.description.toLowerCase().includes(searchQuery.toLowerCase())),
-  );
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredCommunities.length / ITEMS_PER_PAGE),
-  );
-  const paginatedCommunities = filteredCommunities.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
-
   const handleSearch = (val: string) => {
     setSearchQuery(val);
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPage = (val: number) => {
+    setItemsPerPage(val);
+    setCurrentPage(1);
+  };
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setOrder(order === "ASC" ? "DESC" : "ASC");
+    } else {
+      setSortBy(field);
+      setOrder("DESC");
+    }
     setCurrentPage(1);
   };
 
@@ -123,19 +164,70 @@ const CommunityPage = () => {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="mb-10">
-          <div className="relative group max-w-2xl">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="w-5 h-5 text-tx-muted group-focus-within:text-bg-vermillion transition-colors" />
+        {/* Filters, Search, and Pagination Limit */}
+        <div className="mb-10 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+            {/* Search */}
+            <div className="relative grow group w-full md:w-auto">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="w-5 h-5 text-tx-muted group-focus-within:text-bg-vermillion transition-colors" />
+              </div>
+              <input
+                type="text"
+                placeholder="Cari nama atau deskripsi komunitas..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full bg-bg-fresh border border-bg-fresh/50 rounded-2xl py-3.5 pl-12 pr-4 text-tx-primary placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-tx-primary/30 focus:border-tx-primary/50 transition-all shadow-sm font-gasoek text-sm tracking-wide"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Cari nama atau deskripsi komunitas..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full bg-bg-fresh border border-bg-fresh/50 rounded-2xl py-3.5 pl-12 pr-4 text-tx-primary placeholder-opacity-50 focus:outline-none focus:ring-2 focus:ring-tx-primary/30 focus:border-tx-primary/50 transition-all shadow-sm font-gasoek text-sm tracking-wide"
-            />
+
+            {/* Pagination Limit Selector */}
+            <div className="flex items-center gap-2 bg-bg-vermillion/10 p-1.5 rounded-2xl border border-bg-vermillion/20">
+              <span className="text-[10px] font-gasoek text-tx-muted uppercase px-2">
+                Tampilkan:
+              </span>
+              {[8, 12, 16, 24].map((limit) => (
+                <button
+                  key={limit}
+                  onClick={() => handleItemsPerPage(limit)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-gasoek transition-all ${
+                    itemsPerPage === limit
+                      ? "bg-bg-vermillion text-white shadow-md scale-105"
+                      : "text-tx-secondary hover:bg-bg-vermillion/20"
+                  }`}
+                >
+                  {limit}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-2 bg-bg-vermillion/10 p-1.5 rounded-2xl border border-bg-vermillion/20">
+              <span className="text-[10px] font-gasoek text-tx-muted uppercase px-2">
+                Urutkan:
+              </span>
+              {[
+                { label: "Terbaru", field: "community_id" },
+                { label: "Nama", field: "community_name" },
+              ].map((s) => (
+                <button
+                  key={s.field}
+                  onClick={() => handleSort(s.field)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-gasoek transition-all flex items-center gap-1 ${
+                    sortBy === s.field
+                      ? "bg-bg-vermillion text-white shadow-md scale-105"
+                      : "text-tx-secondary hover:bg-bg-vermillion/20"
+                  }`}
+                >
+                  {s.label}
+                  {sortBy === s.field && (
+                    <span className="text-[8px]">
+                      {order === "ASC" ? "▲" : "▼"}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -143,11 +235,11 @@ const CommunityPage = () => {
         <div>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
+              {[...Array(itemsPerPage)].map((_, i) => (
                 <ThriftSkeleton key={i} />
               ))}
             </div>
-          ) : filteredCommunities.length === 0 ? (
+          ) : communities.length === 0 ? (
             <div className="w-full py-24 flex flex-col items-center justify-center text-center bg-bg-vermillion rounded-xl border border-bg-vermillion/50 shadow-sm">
               <div className="w-25 h-25 mb-6 rounded-lg bg-bg-fresh flex items-center justify-center text-tx-primary">
                 <span className="text-3xl font-black font-questrial">
@@ -164,7 +256,7 @@ const CommunityPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedCommunities.map((comm) => {
+              {communities.map((comm) => {
                 const fallBackPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(comm.communityname)}&background=random`;
 
                 return (
@@ -207,36 +299,79 @@ const CommunityPage = () => {
           )}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-12 flex items-center justify-center gap-2 flex-wrap">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2.5 rounded-xl border border-bg-vermillion/50 bg-bg-vermillion text-tx-primary font-gasoek text-xs tracking-widest uppercase shadow-sm hover:bg-bg-fresh transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Prev
-            </button>
-            {[...Array(totalPages)].map((_, i) => (
+        {/* Pagination & Page Info */}
+        {communities.length > 0 && (
+          <div className="mt-12 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+            <div className="flex items-center justify-start gap-2 flex-wrap order-1 md:order-1">
+              {/* Prev */}
               <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`w-10 h-10 rounded-xl font-gasoek text-xs transition-all border ${
-                  currentPage === i + 1
-                    ? "bg-bg-fresh border-bg-fresh/50 text-tx-primary shadow-inner"
-                    : "bg-bg-vermillion border-bg-vermillion/50 text-tx-primary hover:bg-white"
-                }`}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-tx-secondary font-questrial shadow-sm hover:border-bg-vermillion/50 hover:text-bg-vermillion transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
+                title="Sebelumnya"
               >
-                {i + 1}
+                <svg
+                  className="w-5 h-5 transition-transform group-hover:-translate-x-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
               </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2.5 rounded-xl border border-bg-vermillion/50 bg-bg-vermillion text-tx-primary font-gasoek text-xs tracking-widest uppercase shadow-sm hover:bg-bg-fresh transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
+
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-xl text-sm font-gasoek transition-all border ${
+                      currentPage === page
+                        ? "bg-bg-vermillion border-bg-vermillion text-white shadow-md scale-110 z-10"
+                        : "bg-white border-slate-200 text-tx-secondary hover:border-bg-vermillion/40 hover:text-bg-vermillion shadow-sm"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+
+              {/* Next */}
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-tx-secondary font-questrial shadow-sm hover:border-bg-vermillion/50 hover:text-bg-vermillion transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
+                title="Selanjutnya"
+              >
+                <svg
+                  className="w-5 h-5 transition-transform group-hover:translate-x-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Page Info Info */}
+            <div className="text-[10px] font-gasoek text-tx-muted uppercase tracking-wider bg-bg-fresh px-4 py-2 rounded-full border border-bg-fresh/50 shadow-inner order-2 md:order-2">
+              Halaman <span className="text-bg-vermillion">{currentPage}</span>{" "}
+              dari <span className="text-tx-primary">{totalPages}</span>
+            </div>
           </div>
         )}
       </div>
@@ -256,7 +391,10 @@ const CommunityPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedCommunityForPopup(null)}
+              onClick={() => {
+                setSelectedCommunityForPopup(null);
+                setIsManagingMembers(false);
+              }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
@@ -275,9 +413,12 @@ const CommunityPage = () => {
                   alt="Banner"
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-bg-vermillion via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-bg-vermillion via-transparent to-transparent" />
                 <button
-                  onClick={() => setSelectedCommunityForPopup(null)}
+                  onClick={() => {
+                    setSelectedCommunityForPopup(null);
+                    setIsManagingMembers(false);
+                  }}
                   className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-lg transition-colors"
                 >
                   <X size={20} />
@@ -316,62 +457,160 @@ const CommunityPage = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="bg-bg-clean p-4 rounded-xl border border-white/10 shadow-inner">
-                    <h4 className="text-xs font-gasoek text-tx-secondary uppercase mb-2">
-                      Tentang Komunitas
-                    </h4>
-                    <p className="text-sm text-tx-primary font-questrial leading-relaxed">
-                      {selectedCommunityForPopup.description ||
-                        "Tidak ada deskripsi tersedia."}
-                    </p>
-                  </div>
+                  {!isManagingMembers ? (
+                    <>
+                      <div className="bg-bg-clean p-4 rounded-xl border border-white/10 shadow-inner">
+                        <h4 className="text-xs font-gasoek text-tx-secondary uppercase mb-2">
+                          Tentang Komunitas
+                        </h4>
+                        <p className="text-sm text-tx-primary font-questrial leading-relaxed">
+                          {selectedCommunityForPopup.description ||
+                            "Tidak ada deskripsi tersedia."}
+                        </p>
+                      </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button
-                      onClick={() => {
-                        setSelectedCommunityForPopup(null);
-                        navigate("/chats");
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary"
-                    >
-                      <MessageSquare size={18} />
-                      Buka Komunitas
-                    </button>
-
-                    {user?.userid === selectedCommunityForPopup.userid && (
-                      <div className="flex gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <button
                           onClick={() => {
-                            const comm = selectedCommunityForPopup;
+                            const commId = selectedCommunityForPopup.communityid;
                             setSelectedCommunityForPopup(null);
-                            handleEdit(comm);
+                            navigate(`/chats?communityId=${commId}`);
                           }}
-                          className="px-6 py-4 bg-bg-fresh text-tx-primary hover:bg-tx-primary hover:text-bg-fresh rounded-xl cursor-pointer font-gasoek text-sm shadow-md group"
-                          title="Edit Komunitas"
+                          className="flex-1 flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary"
                         >
-                          <Edit2 size={18} />
+                          <MessageSquare size={18} />
+                          Buka Komunitas
                         </button>
+
                         <button
                           onClick={() => {
-                            const commId =
-                              selectedCommunityForPopup.communityid;
-                            setSelectedCommunityForPopup(null);
-                            handleDelete(commId);
+                            setIsManagingMembers(true);
+                            fetchMembers(selectedCommunityForPopup.communityid);
                           }}
-                          className="px-6 py-4 bg-red-500 text-bg-clean cursor-pointer rounded-xl font-gasoek text-sm hover:bg-bg-clean hover:text-red-500 "
-                          title="Hapus Komunitas"
+                          className="flex-1 flex items-center justify-center gap-2 py-4 bg-bg-fresh text-tx-primary rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-tx-primary hover:text-bg-clean"
                         >
-                          <Trash2 size={18} />
+                          <Users size={18} />
+                          Daftar Pengguna
                         </button>
                       </div>
-                    )}
-                  </div>
+
+                      {user?.userid === selectedCommunityForPopup.userid && (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              const comm = selectedCommunityForPopup;
+                              setSelectedCommunityForPopup(null);
+                              handleEdit(comm);
+                            }}
+                            className="flex-1 py-4 bg-slate-200 text-tx-primary hover:bg-tx-primary hover:text-bg-clean rounded-xl cursor-pointer font-gasoek text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                            title="Edit Komunitas"
+                          >
+                            <Edit2 size={16} /> Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              const commId =
+                                selectedCommunityForPopup.communityid;
+                              setSelectedCommunityForPopup(null);
+                              handleDelete(commId);
+                            }}
+                            className="flex-1 py-4 bg-red-50 text-white cursor-pointer rounded-xl font-gasoek text-sm hover:bg-red-600 shadow-md transition-all flex items-center justify-center gap-2"
+                            title="Hapus Komunitas"
+                          >
+                            <Trash2 size={16} /> Hapus
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-gasoek text-tx-secondary uppercase">
+                          Daftar Pengguna
+                        </h4>
+                        <button 
+                          onClick={() => setIsManagingMembers(false)}
+                          className="text-xs text-tx-muted hover:text-tx-primary font-gasoek underline"
+                        >
+                          Kembali
+                        </button>
+                      </div>
+
+                      {/* Members list */}
+                      <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                        {members.map(m => (
+                          <div 
+                            key={m.community_member_id} 
+                            className="flex items-center justify-between p-3 bg-bg-clean border border-white/20 rounded-xl shadow-sm cursor-pointer hover:bg-bg-fresh/20 transition-colors"
+                            onClick={() => setSelectedUserForDetail({
+                              userid: m.user_id,
+                              fullname: m.full_name,
+                              username: m.user_name,
+                              profilepicturl: m.profile_pict_url,
+                              email: m.email,
+                              phonenum: m.phone_num,
+                              userrank: m.user_rank,
+                              bannerimgurl: m.banner_img_url,
+                              userpoint: m.user_point
+                            })}
+                          >
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={m.profile_pict_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.full_name)}&background=random`} 
+                                className="w-8 h-8 rounded-lg object-cover"
+                                alt=""
+                              />
+                              <div>
+                                <p className="text-sm font-gasoek text-tx-primary leading-none uppercase tracking-tight">{m.full_name}</p>
+                                <p className="text-[10px] text-tx-muted font-questrial">{m.role} • {m.status}</p>
+                              </div>
+                            </div>
+
+                            {m.role !== 'Admin' && (
+                              <div className="flex gap-1">
+                                {m.status === 'Pending' && (
+                                  <>
+                                    <button 
+                                      onClick={() => handleUpdateMember(m.community_member_id, 'Active')}
+                                      className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg"
+                                      title="Terima"
+                                    >
+                                      <Check size={16} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleUpdateMember(m.community_member_id, 'Remove')}
+                                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                                      title="Tolak"
+                                    >
+                                      <X size={16} />
+                                    </button>
+                                  </>
+                                )}
+                                <button 
+                                  onClick={() => handleUpdateMember(m.community_member_id, 'Remove')}
+                                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                  title="Hapus"
+                                >
+                                  <UserMinus size={16} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      <UserDetailPopup 
+        selectedUser={selectedUserForDetail} 
+        onClose={() => setSelectedUserForDetail(null)} 
+      />
     </div>
   );
 };

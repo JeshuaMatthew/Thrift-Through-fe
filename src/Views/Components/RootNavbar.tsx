@@ -1,22 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../Utils/Hooks/AuthProvider";
 import { LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatImageUrl } from "../../Utils/FormatUrl";
 
 const RootNavbar = () => {
   const location = useLocation();
   const { logout, user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const navLinks = [
     { name: "Pasar", path: "/market" },
@@ -51,24 +43,20 @@ const RootNavbar = () => {
             className={`flex items-center justify-between ${isMapPage ? "h-12 gap-4 md:gap-8" : "h-16"}`}
           >
             {/* Logo */}
-            <motion.div layout className="flex-shrink-0">
+            <motion.div layout className="shrink-0">
               <Link to="/thrifts" className="flex items-center group">
                 <motion.img
                   layout
                   src="/src/Assets/def/logo-large.webp"
                   alt="ThriftThrough Logo"
-                  className={`object-contain ${
-                    isMapPage ? "h-7" : "h-10"
-                  }`}
+                  className={`object-contain ${isMapPage ? "h-7" : "h-10"}`}
                 />
               </Link>
             </motion.div>
 
             {/* Navigation Links */}
             {!isMapPage && (
-              <div
-                className="hidden md:flex items-center space-x-1"
-              >
+              <div className="hidden md:flex items-center space-x-1">
                 {navLinks.map((link) => {
                   const isActive = location.pathname.startsWith(link.path);
                   return (
@@ -91,7 +79,9 @@ const RootNavbar = () => {
             {/* Right Section (User Profile & Hamburger) */}
             <motion.div layout className="flex items-center gap-2 sm:gap-4">
               {/* Mobile Menu Hamburger Button */}
-              <div className={`${isMapPage ? "flex" : "md:hidden"} items-center`}>
+              <div
+                className={`${isMapPage ? "flex" : "md:hidden"} items-center`}
+              >
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   className={`${textColorClass} opacity-80 hover:opacity-100 p-2 focus:outline-none focus:ring-2 focus:ring-bg-vermillion rounded-lg transition-colors`}
@@ -106,12 +96,32 @@ const RootNavbar = () => {
                       transition={{ duration: 0.2 }}
                     >
                       {isMobileMenuOpen ? (
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          ></path>
                         </svg>
                       ) : (
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4 6h16M4 12h16M4 18h16"
+                          ></path>
                         </svg>
                       )}
                     </motion.div>
@@ -132,16 +142,20 @@ const RootNavbar = () => {
                       className="flex items-center gap-2 p-1 rounded-xl hover:bg-tx-muted/10 transition-all group"
                     >
                       <div className="text-right">
-                        <p className="text-xs font-gasoek tracking-wide text-tx-primary leading-tight group-hover:text-bg-vermillion transition-colors">
-                          {user?.fullname || "User"}
+                        <p className="text-xs font-gasoek tracking-wide w-30 truncate text-tx-primary leading-tight group-hover:text-bg-vermillion transition-colors">
+                          {user?.username || "User"}
                         </p>
                         <p className="text-[10px] text-bg-vermillion font-questrial">
-                          {user?.userrank || "Member"}
+                          {user?.userrank || "-"}
                         </p>
                       </div>
-                      <div className="rounded-full bg-bg-clean border-2 border-bg-vermillion/50 overflow-hidden flex-shrink-0 group-hover:border-bg-vermillion transition-colors relative cursor-pointer w-8 h-8">
+                      <div className="rounded-full bg-bg-clean border-2 border-bg-vermillion/50 overflow-hidden shrink-0 group-hover:border-bg-vermillion transition-colors relative cursor-pointer w-8 h-8">
                         <img
-                          src={user?.profilepicturl || `https://ui-avatars.com/api/?name=${user?.fullname || "User"}&background=95c079&color=fff`}
+                          src={
+                            user?.profilepicturl
+                              ? formatImageUrl(user.profilepicturl)
+                              : `https://ui-avatars.com/api/?name=${user?.fullname || "User"}&background=95c079&color=fff`
+                          }
                           alt="Profile"
                           className="w-full h-full object-cover"
                         />
@@ -165,7 +179,7 @@ const RootNavbar = () => {
 
       {/* Mobile Grid Menu Overlay */}
       <div
-        className={`${isMapPage ? "" : "md:hidden"} fixed inset-0 z-[100] bg-tx-primary transition-all duration-300 transform ${
+        className={`${isMapPage ? "" : "md:hidden"} fixed inset-0 z-100 bg-tx-primary transition-all duration-300 transform ${
           isMobileMenuOpen
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-full pointer-events-none"
@@ -224,11 +238,12 @@ const RootNavbar = () => {
               className="col-span-2 flex items-center justify-between p-4 rounded-lg bg-bg-fresh transition-all mb-2"
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full border-2 border-tx-primary/20 overflow-hidden flex-shrink-0">
+                <div className="w-12 h-12 rounded-full border-2 border-tx-primary/20 overflow-hidden shrink-0">
                   <img
                     src={
-                      user?.profilepicturl ||
-                      `https://ui-avatars.com/api/?name=${user?.fullname || "User"}&background=95c079&color=fff`
+                      user?.profilepicturl
+                        ? formatImageUrl(user.profilepicturl)
+                        : `https://ui-avatars.com/api/?name=${user?.fullname || "User"}&background=95c079&color=fff`
                     }
                     alt="Profile"
                     className="w-full h-full object-cover"

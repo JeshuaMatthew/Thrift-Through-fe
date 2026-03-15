@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../Utils/Hooks/AuthProvider";
 
 const LoginForm: React.FC = () => {
@@ -49,7 +49,7 @@ const LoginForm: React.FC = () => {
           <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-3 text-red-400 text-sm animate-pulse">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 flex-shrink-0"
+              className="h-5 w-5 shrink-0"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -158,12 +158,12 @@ const LoginForm: React.FC = () => {
 
       <p className="mt-8 text-center text-sm text-tx-secondary font-questrial">
         Tidak punya akun?{" "}
-        <a
-          href="#"
+        <Link
+          to="/register"
           className="font-bold text-tx-secondary hover:text-bg-fresh transition-colors"
         >
           Daftar disini
-        </a>
+        </Link>
       </p>
     </div>
   );

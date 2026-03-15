@@ -21,11 +21,9 @@ import {
   XCircle,
   CheckSquare,
   Edit2,
-  Check,
-  MapPin,
-  Paperclip,
-  Recycle
+  Check
 } from "lucide-react";
+import { formatImageUrl } from "../../Utils/FormatUrl";
 
 type ChatListItem = {
   id: string;
@@ -54,7 +52,6 @@ const ChatPage = () => {
   const [selectedChats, setSelectedChats] = useState<Set<number>>(new Set());
 
   const chatServiceRef = useRef<ChatService | null>(null);
-  // Menggunakan ref untuk kontainer chat agar scroll spesifik pada area pesan
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const quickReplies = [
@@ -66,92 +63,110 @@ const ChatPage = () => {
 
   useEffect(() => {
     const fetchSidebarData = async () => {
-      const commService = new CommunityService();
-      const allComms = await commService.getAllCommunities();
-      const userService = new UserService();
-      const allUsers = await userService.getAllUsersInCommunity();
-      setUsers(allUsers);
+      if (!chatServiceRef.current) chatServiceRef.current = new ChatService();
+      
+      const [allChats, allUsers] = await Promise.all([
+        chatServiceRef.current.getMyChatList(),
+        new UserService().getAllUsers()
+      ]);
+      
+      setUsers(allUsers || []);
 
-      const formattedComms: ChatListItem[] = allComms.map((c) => ({
-        id: `comm_${c.communityid}`,
-        name: c.communityname,
-        type: "community",
-        picture:
-          c.profilepicturl ||
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(c.communityname)}&background=f6ed6c&color=183020`,
-        communityId: c.communityid,
-      }));
-
-      const defaultUsers: ChatListItem[] = [
-        {
-          id: "user_102",
-          name: "Siti Aminah",
-          type: "user",
-          picture: "https://i.pravatar.cc/150?u=sitiaminah",
+      const formattedChats: ChatListItem[] = (allChats || []).map((c: any) => {
+        const itemType: "user" | "community" = c.community_type === 'directchat' ? "user" : "community";
+        if (itemType === 'user') {
+          return {
+            id: `user_${c.target_user_id}`,
+            name: c.target_full_name || "Unknown User",
+            type: itemType,
+            picture: formatImageUrl(c.target_profile_pic) || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.target_full_name || "U")}&background=f6ed6c&color=183020`,
+            communityId: Number(c.community_id),
+            lastMessage: c.last_message
+          };
+        } else {
+          return {
+            id: `comm_${c.community_id}`,
+            name: c.community_name,
+            type: itemType,
+            picture: formatImageUrl(c.community_pic) || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.community_name)}&background=f6ed6c&color=183020`,
+            communityId: Number(c.community_id),
+            lastMessage: c.last_message
+          };
         }
-      ];
+      });
 
+      setChatList(formattedChats);
+
+      // Handle targeted user or community from URL
       const queryParams = new URLSearchParams(location.search);
       const targetUserIdStr = queryParams.get("userId");
-      
-      let targetUserItem: ChatListItem | null = null;
-      
-      if (targetUserIdStr) {
-        const targetUserId = parseInt(targetUserIdStr, 10);
-        if (targetUserId !== user?.userid) {
-           const targetUserObj = allUsers.find(u => u.userid === targetUserId);
-           if (targetUserObj) {
-              const checkExt = defaultUsers.find(u => u.id === `user_${targetUserId}`);
-              if (!checkExt) {
-                const newCommName = `Chat: ${user?.fullname} & ${targetUserObj.fullname}`;
-                const fallbackPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(targetUserObj.fullname)}&background=f6ed6c&color=183020`;
-                
-                const newComm = await commService.createCommunity({
-                   userid: user?.userid || 999,
-                   description: "Personal Chat Room",
-                   profilepicturl: targetUserObj.profilepicturl || fallbackPic,
-                   communityname: newCommName,
-                   isPublic: false
-                });
+      const targetCommIdStr = queryParams.get("communityId");
 
-                targetUserItem = {
-                  id: `user_${targetUserId}`,
-                  name: targetUserObj.fullname,
-                  type: "user",
-                  picture: targetUserObj.profilepicturl || fallbackPic,
-                  communityId: newComm.communityid
-                };
-                defaultUsers.push(targetUserItem);
-              } else {
-                targetUserItem = checkExt;
-              }
-           }
+      if (targetCommIdStr) {
+        const targetCommId = Number(targetCommIdStr);
+        const existing = formattedChats.find(c => Number(c.communityId) === targetCommId);
+        if (existing) {
+          setActiveChat(existing);
+        } else {
+          // If not in sidebar, maybe it's a new community or one not in recent chats
+          const commService = new CommunityService();
+          const detail = await commService.getCommunityDetailById(targetCommId);
+          if (detail) {
+            const newChat: ChatListItem = {
+                id: `comm_${detail.communityid}`,
+                name: detail.communityname,
+                type: "community",
+                picture: detail.profilepicturl || `https://ui-avatars.com/api/?name=${encodeURIComponent(detail.communityname)}&background=f6ed6c&color=183020`,
+                communityId: Number(detail.communityid)
+            };
+            setChatList(prev => {
+              const exists = prev.some(c => Number(c.communityId) === Number(newChat.communityId));
+              return exists ? prev : [newChat, ...prev];
+            });
+            setActiveChat(newChat);
+          }
         }
-      }
-
-      setChatList([...formattedComms, ...defaultUsers]);
-      
-      if (targetUserItem) {
-        setActiveChat(targetUserItem);
+      } else if (targetUserIdStr && user) {
+        const targetUserId = Number(targetUserIdStr);
+        if (targetUserId !== Number(user.userid)) {
+          const commService = new CommunityService();
+          const dm = await commService.getOrCreateDM(targetUserId);
+          if (dm && dm.community_id) {
+            const dmCommId = Number(dm.community_id);
+            const existing = formattedChats.find(c => Number(c.communityId) === dmCommId);
+            if (existing) {
+              setActiveChat(existing);
+            } else {
+              // Refresh if new DM created
+              const refreshedChatsData = await chatServiceRef.current.getMyChatList();
+              const refreshedChats: ChatListItem[] = (refreshedChatsData || []).map((c: any) => ({
+                id: c.community_type === 'directchat' ? `user_${c.target_user_id}` : `comm_${c.community_id}`,
+                name: c.community_type === 'directchat' ? c.target_full_name : c.community_name,
+                type: (c.community_type === 'directchat' ? "user" : "community") as "user" | "community",
+                picture: formatImageUrl(c.community_type === 'directchat' ? c.target_profile_pic : c.community_pic) || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.community_type === 'directchat' ? c.target_full_name : c.community_name)}&background=f6ed6c&color=183020`,
+                communityId: Number(c.community_id),
+                lastMessage: c.last_message
+              }));
+              setChatList(refreshedChats);
+              const newActive = refreshedChats.find((c: any) => Number(c.communityId) === dmCommId);
+              if (newActive) setActiveChat(newActive);
+            }
+          }
+        }
       }
     };
 
     fetchSidebarData();
 
     if (!chatServiceRef.current) {
-      chatServiceRef.current = new ChatService();
+        chatServiceRef.current = new ChatService();
     }
-
-    if (!(chatServiceRef.current as any).isConnected) {
-      chatServiceRef.current.connect(user?.userid || 999);
-    }
+    chatServiceRef.current.connect(user?.userid || 0);
 
     return () => {
-      if (chatServiceRef.current) {
-        chatServiceRef.current.disconnect();
-      }
+        chatServiceRef.current?.disconnect();
     };
-  }, [user]);
+  }, [user, location.search]);
 
   useEffect(() => {
     setIsSelectMode(false);
@@ -162,91 +177,70 @@ const ChatPage = () => {
     if (!activeChat || !chatServiceRef.current) return;
 
     const handleNewMessage = (newChat: Chat) => {
-      if (newChat.communityid === (activeChat.communityId || 0)) {
+      if (Number(newChat.communityId) === (activeChat.communityId || 0)) {
         setMessages((prev) => [...prev, newChat]);
       }
     };
 
-    if (activeChat.type === "community" && activeChat.communityId) {
-      const history = chatServiceRef.current.joinCommunityRoom(activeChat.communityId);
-      setMessages(history);
-      chatServiceRef.current.onReceiveMessage(handleNewMessage);
-    } else if (activeChat.type === "user" && activeChat.communityId) {
-      const history = chatServiceRef.current.joinCommunityRoom(activeChat.communityId);
-      setMessages(history);
-      chatServiceRef.current.onReceiveMessage(handleNewMessage);
-    } else {
-      setMessages([
-        {
-          chatid: 901,
-          communityid: 0,
-          userid: 102,
-          chattext: "Halo kak, barang e-waste nya masih ada?",
-          datesent: new Date(),
-        },
-      ]);
-      chatServiceRef.current.onReceiveMessage(handleNewMessage);
-    }
+    const handleMessageEdited = (editedChat: Chat) => {
+      if (Number(editedChat.communityId) === (activeChat.communityId || 0)) {
+        setMessages((prev) => prev.map(m => Number(m.chatId) === Number(editedChat.chatId) ? editedChat : m));
+      }
+    };
+
+    const handleMessageDeleted = (data: { chat_id: number }) => {
+      setMessages((prev) => prev.map(m => Number(m.chatId) === Number(data.chat_id) ? { ...m, chatText: "Pesan ini telah dihapus" } : m));
+    };
+
+    chatServiceRef.current.onReceiveMessage(handleNewMessage);
+    chatServiceRef.current.onMessageEdited(handleMessageEdited);
+    chatServiceRef.current.onMessageDeleted(handleMessageDeleted);
+
+    const loadHistory = async () => {
+      if (activeChat.communityId) {
+        const history = await chatServiceRef.current!.joinCommunityRoom(activeChat.communityId);
+        setMessages(history);
+      }
+    };
+
+    loadHistory();
   }, [activeChat]);
 
-  // Logika Auto-scroll yang diperbaiki menggunakan scrollTo pada kontainer
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: "smooth"
-      });
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+
+    // Scroll active sidebar item into view
+    if (activeChat) {
+      setTimeout(() => {
+        const activeElem = document.getElementById(`chat-item-${activeChat.id}`);
+        if (activeElem) {
+          activeElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+    }
+  }, [messages, activeChat]);
 
   const handleSendMessage = (e: React.FormEvent | string) => {
     if (typeof e !== 'string') e.preventDefault();
-    
     const textToSend = typeof e === 'string' ? e : inputText;
-    
-    if (!textToSend.trim() || !activeChat || !chatServiceRef.current) return;
+    if (!textToSend.trim() || !activeChat?.communityId || !chatServiceRef.current) return;
+    chatServiceRef.current.sendMessage(activeChat.communityId, textToSend);
+    setInputText("");
+  };
 
-    if (activeChat.type === "community" && activeChat.communityId) {
-      chatServiceRef.current.sendMessage(activeChat.communityId, textToSend);
-      setInputText("");
-      chatServiceRef.current.simulateReplyFromOtherUser(
-        activeChat.communityId,
-        102,
-        "Membalas pesan Anda di grup...",
-      );
-    } else if (activeChat.type === "user" && activeChat.communityId) {
-      chatServiceRef.current.sendMessage(activeChat.communityId, textToSend);
-      setInputText("");
-      const otherUserId = parseInt(activeChat.id.replace("user_", ""), 10);
-      chatServiceRef.current.simulateReplyFromOtherUser(
-        activeChat.communityId,
-        otherUserId || 102,
-        "Baik kak, nanti saya info ya.",
-      );
-    } else {
-      const newMsg: Chat = {
-        chatid: Math.random(),
-        communityid: 0,
-        userid: user?.userid || 999,
-        chattext: textToSend,
-        datesent: new Date(),
-      };
-      setMessages((prev) => [...prev, newMsg]);
-      setInputText("");
+  const handleEditMessage = (chatId: number, newText: string) => {
+    if (!activeChat?.communityId || !chatServiceRef.current) return;
+    chatServiceRef.current.editMessage(chatId, activeChat.communityId, newText);
+    setEditingChatId(null);
+  };
 
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            chatid: Math.random(),
-            communityid: 0,
-            userid: 102,
-            chattext: "Baik kak, nanti saya info ya.",
-            datesent: new Date(),
-          },
-        ]);
-      }, 1500);
-    }
+  const handleDeleteMessages = (chatIds: number[]) => {
+    if (!activeChat?.communityId || !chatServiceRef.current) return;
+    chatServiceRef.current.deleteMessages(chatIds, activeChat.communityId);
+    setIsSelectMode(false);
+    setSelectedChats(new Set());
   };
 
   return (
@@ -273,30 +267,34 @@ const ChatPage = () => {
             {chatList
               .filter((item) => {
                 if (!searchQuery.trim()) return true;
-                if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) return true;
-                if (chatServiceRef.current) {
-                  const matchedHistory = chatServiceRef.current.searchMyChats(searchQuery, user?.userid || 999);
-                  const matchesCommunity = matchedHistory.some((m) => m.communityid === item.communityId);
-                  const isDirectMessageMatch = matchedHistory.some((m) => m.communityid === 0 && m.userid === parseInt(item.id.replace("user_", "")));
-                  return (matchesCommunity || (item.type === "user" && isDirectMessageMatch));
-                }
-                return false;
+                return item.name.toLowerCase().includes(searchQuery.toLowerCase());
               })
               .map((item) => (
                 <div
                   key={item.id}
+                  id={`chat-item-${item.id}`}
                   onClick={() => setActiveChat(item)}
                   className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 select-none ${
                     activeChat?.id === item.id
-                      ? "bg-bg-vermillion/20 border border-bg-vermillion/50 shadow-sm"
-                      : "hover:bg-white border border-transparent"
+                      ? "bg-bg-fresh border border-bg-fresh shadow-sm"
+                      : "hover:bg-bg-fresh/50 border border-transparent"
                   }`}
                 >
                   <div className="relative shrink-0">
                     <img
                       src={item.picture}
                       alt={item.name}
-                      className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (item.type === "user") {
+                          const targetUserId = parseInt(item.id.replace("user_", ""), 10);
+                          const matchUser = users.find(u => u.userid === targetUserId);
+                          if (matchUser) setSelectedUserProfile(matchUser);
+                        } else if (item.communityId) {
+                           new CommunityService().getCommunityDetailById(item.communityId).then(d => setSelectedCommunityProfile(d));
+                        }
+                      }}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm hover:scale-105 transition-transform"
                     />
                     {item.type === "community" && (
                       <div className="absolute -bottom-1 -right-1 bg-tx-secondary text-white p-1 rounded-full border-2 border-white">
@@ -305,11 +303,13 @@ const ChatPage = () => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-tx-primary truncate text-sm">
-                      {item.name}
-                    </h3>
+                    <div className="flex justify-between items-baseline mb-0.5">
+                      <h3 className="font-bold text-tx-primary truncate text-sm flex-1">
+                        {item.name}
+                      </h3>
+                    </div>
                     <p className="text-xs text-tx-secondary font-medium truncate">
-                      {item.type === "community" ? "Room Komunitas" : "Personal Chat"}
+                      {item.lastMessage || (item.type === "community" ? "Room Komunitas" : "Personal Chat")}
                     </p>
                   </div>
                 </div>
@@ -344,8 +344,13 @@ const ChatPage = () => {
                     className="flex items-center cursor-pointer hover:bg-bg-clean p-1.5 -ml-1.5 rounded-xl transition-colors"
                     onClick={async () => {
                       if (activeChat.type === "user") {
-                        const matchUser = users.find((u) => `user_${u.userid}` === activeChat.id);
+                        const targetUserId = parseInt(activeChat.id.replace("user_", ""), 10);
+                        const matchUser = users.find((u) => u.userid === targetUserId);
                         if (matchUser) setSelectedUserProfile(matchUser);
+                        else {
+                           const fetched = await new UserService().getUserById(targetUserId);
+                           if (fetched) setSelectedUserProfile(fetched);
+                        }
                       } else if (activeChat.type === "community" && activeChat.communityId) {
                         const commService = new CommunityService();
                         const commDetail = await commService.getCommunityDetailById(activeChat.communityId);
@@ -356,7 +361,7 @@ const ChatPage = () => {
                     <img
                       src={activeChat.picture}
                       alt="Avatar"
-                      className="w-10 h-10 rounded-full object-cover mr-3 bg-bg-fresh"
+                      className="w-10 h-10 rounded-full object-cover mr-3 bg-bg-fresh shadow-sm border border-white"
                     />
                     <div>
                       <h2 className="font-bold text-tx-primary leading-tight">
@@ -377,18 +382,7 @@ const ChatPage = () => {
                           </span>
                         )}
                         <button
-                          onClick={() => {
-                            if (selectedChats.size > 0 && user) {
-                              chatServiceRef.current?.deleteMessages(Array.from(selectedChats), user.userid);
-                              setMessages((prev) =>
-                                prev.map((m) =>
-                                  selectedChats.has(m.chatid) ? { ...m, chattext: "pesan ini dihapus oleh pengguna" } : m
-                                )
-                              );
-                            }
-                            setIsSelectMode(false);
-                            setSelectedChats(new Set());
-                          }}
+                          onClick={() => handleDeleteMessages(Array.from(selectedChats))}
                           className={`p-2 rounded-full transition-colors flex items-center justify-center ${selectedChats.size > 0 ? "hover:bg-tx-accent/10 text-tx-accent" : "text-tx-muted cursor-not-allowed"}`}
                           disabled={selectedChats.size === 0}
                         >
@@ -414,21 +408,9 @@ const ChatPage = () => {
                     )}
                   </div>
                 </div>
-                
-                {/* Contextual Banner */}
-                {activeChat.type === "user" && (
-                    <div className="bg-bg-fresh/30 border-t border-bg-vermillion/20 px-4 md:px-6 py-2 flex justify-between items-center text-xs md:text-sm">
-                        <div className="flex items-center gap-2 text-tx-secondary font-bold">
-                            <Recycle size={14} /> Membahas: Laptop Rusak (Estimasi 2kg)
-                        </div>
-                        <div className="flex items-center gap-1 text-tx-accent font-bold">
-                            <MapPin size={14} /> Berjarak 2.5 km
-                        </div>
-                    </div>
-                )}
               </div>
 
-              {/* Messages Area - Penambahan ref chatContainerRef di sini */}
+              {/* Messages Area */}
               <div 
                 ref={chatContainerRef} 
                 className="flex-1 overflow-y-auto p-4 md:p-6 bg-bg-clean custom-scrollbar flex flex-col gap-4"
@@ -439,10 +421,10 @@ const ChatPage = () => {
                   </div>
                 ) : (
                   messages.map((msg, idx) => {
-                    const isMe = msg.userid === (user?.userid || 999);
-                    const msgUser = users.find((u) => u.userid === msg.userid);
-                    const msgUserName = msgUser?.fullname || `User ${msg.userid}`;
-                    const msgUserAvatar = msgUser?.profilepicturl || `https://ui-avatars.com/api/?name=${encodeURIComponent(msgUserName)}&background=random`;
+                    const isMe = Number(msg.userId) === Number(user?.userid || 999);
+                    const msgUser = users.find((u) => Number(u.userid) === Number(msg.userId));
+                    const msgUserName = msgUser?.fullname || `User ${msg.userId}`;
+                    const msgUserAvatar = formatImageUrl(msgUser?.profilepicturl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(msgUserName)}&background=f6ed6c&color=183020`;
 
                     return (
                       <div key={idx} className={`flex max-w-[85%] md:max-w-[75%] ${isMe ? "self-end" : "self-start"}`}>
@@ -452,19 +434,19 @@ const ChatPage = () => {
                               className="flex items-center gap-1.5 mb-0.5 px-1 cursor-pointer hover:opacity-80 transition-opacity"
                               onClick={() => msgUser ? setSelectedUserProfile(msgUser) : null}
                             >
-                              <img src={msgUserAvatar} alt={msgUserName} className="w-5 h-5 rounded-full object-cover border border-bg-vermillion/30" />
+                              <img src={msgUserAvatar} alt={msgUserName} className="w-5 h-5 rounded-full object-cover border border-bg-vermillion/30 shadow-xs" />
                               <span className="text-[11px] font-bold text-tx-secondary">{msgUserName}</span>
                             </div>
                           )}
                           <div className={`flex items-center gap-2 group ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                            {isSelectMode && isMe && msg.chattext !== "pesan ini dihapus oleh pengguna" && (
+                            {isSelectMode && isMe && msg.chatText !== "Pesan ini telah dihapus" && (
                               <input
                                 type="checkbox"
-                                checked={selectedChats.has(msg.chatid)}
+                                checked={selectedChats.has(msg.chatId)}
                                 onChange={(e) => {
                                   const newSet = new Set(selectedChats);
-                                  if (e.target.checked) newSet.add(msg.chatid);
-                                  else newSet.delete(msg.chatid);
+                                  if (e.target.checked) newSet.add(msg.chatId);
+                                  else newSet.delete(msg.chatId);
                                   setSelectedChats(newSet);
                                 }}
                                 className="w-4 h-4 ml-2 mr-1 rounded border-tx-muted text-tx-secondary focus:ring-tx-secondary shrink-0 cursor-pointer"
@@ -473,72 +455,61 @@ const ChatPage = () => {
 
                             <div
                               className={`px-4 py-2.5 rounded-2xl relative shadow-sm ${
-                                msg.chattext === "pesan ini dihapus oleh pengguna"
+                                msg.chatText === "Pesan ini telah dihapus"
                                   ? "bg-white border border-bg-vermillion/30 text-tx-muted italic rounded-bl-sm"
                                   : isMe
-                                    ? "bg-tx-secondary text-white rounded-br-sm"
-                                    : "bg-white border border-bg-vermillion/40 text-tx-primary rounded-bl-sm"
+                                    ? "bg-bg-vermillion text-tx-primary rounded-br-sm shadow-md"
+                                    : "bg-white border border-bg-vermillion/40 text-tx-primary rounded-bl-sm shadow-sm"
                               }`}
                             >
-                              {editingChatId === msg.chatid ? (
+                              {editingChatId === msg.chatId ? (
                                 <div className="flex items-center gap-2 min-w-[200px]">
                                   <input
                                     autoFocus
-                                    className="flex-1 bg-white/20 text-white placeholder-white/60 border border-white/40 focus:border-white focus:outline-none rounded px-2 py-1 text-[14px] font-bold"
+                                    className="flex-1 bg-white/20 text-tx-primary placeholder-tx-primary/60 border border-tx-primary/40 focus:border-tx-primary focus:outline-none rounded px-2 py-1 text-[14px] font-bold"
                                     value={editInputText}
                                     onChange={(e) => setEditInputText(e.target.value)}
                                     onKeyDown={(e) => {
-                                      if (e.key === "Enter" && editInputText.trim() && user) {
-                                        chatServiceRef.current?.editMessage(msg.chatid, user.userid, editInputText);
-                                        setMessages((prev) => prev.map((m) => m.chatid === msg.chatid ? { ...m, chattext: editInputText } : m));
-                                        setEditingChatId(null);
+                                      if (e.key === "Enter" && editInputText.trim()) {
+                                        handleEditMessage(msg.chatId, editInputText);
                                       } else if (e.key === "Escape") setEditingChatId(null);
                                     }}
                                   />
-                                  <button onClick={() => {
-                                      if (editInputText.trim() && user) {
-                                        chatServiceRef.current?.editMessage(msg.chatid, user.userid, editInputText);
-                                        setMessages((prev) => prev.map((m) => m.chatid === msg.chatid ? { ...m, chattext: editInputText } : m));
-                                        setEditingChatId(null);
-                                      }
-                                    }} className="p-1 hover:bg-white/20 rounded-full transition-colors">
-                                    <Check size={14} className="text-bg-fresh" />
-                                  </button>
-                                  <button onClick={() => setEditingChatId(null)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
-                                    <X size={14} className="text-tx-accent" />
-                                  </button>
+                                  <div className="flex gap-1 shrink-0">
+                                    <button onClick={() => handleEditMessage(msg.chatId, editInputText)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                                      <Check size={14} className="text-bg-fresh" />
+                                    </button>
+                                    <button onClick={() => setEditingChatId(null)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                                      <X size={14} className="text-tx-accent" />
+                                    </button>
+                                  </div>
                                 </div>
                               ) : (
-                                <p className="text-[15px] leading-relaxed wrap-break-word whitespace-pre-wrap font-bold">
-                                  {msg.chattext}
+                                <p className="text-[14px] md:text-[15px] leading-relaxed wrap-break-word whitespace-pre-wrap font-bold">
+                                  {msg.chatText}
                                 </p>
                               )}
                             </div>
 
-                            {!isSelectMode && isMe && editingChatId !== msg.chatid && msg.chattext !== "pesan ini dihapus oleh pengguna" && (
+                            {!isSelectMode && isMe && editingChatId !== msg.chatId && msg.chatText !== "Pesan ini telah dihapus" && (
                               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity px-1 shrink-0">
                                 <button
-                                  onClick={() => { setEditingChatId(msg.chatid); setEditInputText(msg.chattext); }}
-                                  className="p-1.5 text-tx-muted hover:text-tx-secondary hover:bg-white rounded-full"
+                                  onClick={() => { setEditingChatId(msg.chatId); setEditInputText(msg.chatText); }}
+                                  className="p-1.5 text-tx-muted hover:text-tx-secondary hover:bg-white rounded-full transition-all shadow-xs"
                                 >
-                                  <Edit2 size={14} />
+                                  <Edit2 size={13} />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (user) {
-                                      chatServiceRef.current?.deleteMessages([msg.chatid], user.userid);
-                                      setMessages((prev) => prev.map((m) => m.chatid === msg.chatid ? { ...m, chattext: "pesan ini dihapus oleh pengguna" } : m));
-                                    }
-                                  }}
-                                  className="p-1.5 text-tx-muted hover:text-tx-accent hover:bg-white rounded-full"
+                                  onClick={() => handleDeleteMessages([msg.chatId])}
+                                  className="p-1.5 text-tx-muted hover:text-tx-accent hover:bg-white rounded-full transition-all shadow-xs"
                                 >
-                                  <Trash2 size={14} />
+                                  <Trash2 size={13} />
                                 </button>
                               </div>
                             )}
                           </div>
-                          <span className="text-[10px] text-tx-muted font-bold px-1">
-                            {new Date(msg.datesent).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          <span className="text-[9px] md:text-[10px] text-tx-muted font-bold px-1 opacity-70">
+                            {new Date(msg.dateSent).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
                       </div>
@@ -555,7 +526,7 @@ const ChatPage = () => {
                         <button 
                             key={idx}
                             onClick={() => handleSendMessage(reply)} 
-                            className="whitespace-nowrap px-3 py-1.5 bg-bg-clean hover:bg-bg-vermillion text-tx-secondary text-xs font-bold rounded-full border border-bg-vermillion/40 transition-colors"
+                            className="whitespace-nowrap px-3 py-1.5 bg-bg-clean hover:bg-bg-vermillion text-tx-secondary text-xs font-bold rounded-full border border-bg-vermillion/40 transition-colors shadow-sm"
                         >
                             {reply}
                         </button>
@@ -565,12 +536,6 @@ const ChatPage = () => {
                 {/* Form Input */}
                 <form onSubmit={handleSendMessage} className="flex gap-2 items-end max-w-4xl mx-auto p-3 md:p-4">
                   <div className="flex gap-1 pb-1 shrink-0">
-                      <button type="button" className="p-2 text-tx-muted hover:text-tx-secondary hover:bg-bg-clean rounded-full transition-colors" title="Bagikan Lokasi">
-                          <MapPin size={22} />
-                      </button>
-                      <button type="button" className="p-2 text-tx-muted hover:text-tx-secondary hover:bg-bg-clean rounded-full transition-colors" title="Lampirkan Foto E-Waste">
-                          <Paperclip size={22} />
-                      </button>
                   </div>
                   
                   <textarea
@@ -583,13 +548,13 @@ const ChatPage = () => {
                       }
                     }}
                     placeholder="Ketik pesan..."
-                    className="flex-1 bg-bg-clean/50 border border-bg-vermillion/50 focus:bg-white focus:border-tx-secondary focus:ring-2 focus:ring-tx-secondary/20 rounded-2xl text-[15px] font-bold text-tx-primary transition-all outline-none py-3 px-4 resize-none max-h-32 min-h-[48px] custom-scrollbar"
+                    className="flex-1 bg-bg-clean/50 border border-bg-vermillion/50 focus:bg-white focus:border-tx-secondary focus:ring-2 focus:ring-tx-secondary/20 rounded-2xl text-[14px] md:text-[15px] font-bold text-tx-primary transition-all outline-none py-3 px-4 resize-none max-h-32 min-h-[48px] custom-scrollbar"
                     rows={1}
                   />
                   <button
                     type="submit"
                     disabled={!inputText.trim()}
-                    className="h-12 w-12 rounded-full bg-bg-vermillion hover:bg-tx-secondary disabled:bg-bg-clean disabled:text-tx-muted text-tx-primary hover:text-white flex items-center justify-center shrink-0 transition-all shadow-md disabled:shadow-none hover:scale-105 active:scale-95 disabled:hover:scale-100"
+                    className="h-12 w-12 rounded-full bg-bg-vermillion hover:bg-bg-fresh disabled:bg-bg-clean disabled:text-tx-muted text-tx-primary hover:text-tx-primary flex items-center justify-center shrink-0 transition-all shadow-md disabled:shadow-none hover:scale-105 active:scale-95 disabled:hover:scale-100"
                   >
                     <Send size={20} className="ml-1" />
                   </button>
@@ -602,7 +567,7 @@ const ChatPage = () => {
 
       {/* User Profile Modal Overlay */}
       {selectedUserProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-tx-primary/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-tx-primary/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-bg-vermillion/30">
             <div
               className={`h-24 relative bg-cover bg-center ${!selectedUserProfile.bannerimgurl ? "bg-bg-fresh" : ""}`}
@@ -616,7 +581,7 @@ const ChatPage = () => {
               </button>
               <div className="absolute -bottom-10 left-6">
                 <img
-                  src={selectedUserProfile.profilepicturl || `https://ui-avatars.com/api/?name=${selectedUserProfile.fullname}&background=f6ed6c&color=183020`}
+                  src={formatImageUrl(selectedUserProfile.profilepicturl) || `https://ui-avatars.com/api/?name=${selectedUserProfile.fullname}&background=f6ed6c&color=183020`}
                   alt={selectedUserProfile.fullname}
                   className="w-20 h-20 rounded-full border-4 border-white object-cover bg-white shadow-md"
                 />
@@ -645,7 +610,7 @@ const ChatPage = () => {
 
       {/* Community Profile Modal Overlay */}
       {selectedCommunityProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-tx-primary/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-tx-primary/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-bg-vermillion/30">
             <div className="h-28 bg-bg-vermillion relative flex justify-center items-center">
               <button
@@ -656,7 +621,7 @@ const ChatPage = () => {
               </button>
               <div className="absolute -bottom-10 shadow-lg p-1 bg-white rounded-2xl">
                 <img
-                  src={selectedCommunityProfile.profilepicturl || `https://ui-avatars.com/api/?name=${selectedCommunityProfile.communityname}&background=f6ed6c&color=183020`}
+                  src={formatImageUrl(selectedCommunityProfile.profilepicturl) || `https://ui-avatars.com/api/?name=${selectedCommunityProfile.communityname}&background=f6ed6c&color=183020`}
                   alt={selectedCommunityProfile.communityname}
                   className="w-20 h-20 rounded-xl object-cover"
                 />
@@ -675,7 +640,7 @@ const ChatPage = () => {
                   <span className="text-xs text-tx-muted font-bold mb-1">Anggota</span>
                   <span className="text-sm font-bold text-tx-primary flex items-center gap-1">
                     <Hash size={14} className="text-tx-secondary" />
-                    {selectedCommunityProfile.members.length}
+                    {selectedCommunityProfile.members?.length || 0}
                   </span>
                 </div>
                 <div className="bg-bg-fresh/20 px-4 py-3 rounded-2xl flex-1 border border-bg-vermillion/30 flex flex-col items-center">

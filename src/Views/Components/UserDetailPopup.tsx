@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, MessageSquare } from "lucide-react";
 import type { User } from "../../Types/User";
+import { formatImageUrl } from "../../Utils/FormatUrl";
+import { useNavigate } from "react-router-dom";
 
 interface UserDetailPopupProps {
   selectedUser: User | null;
@@ -8,6 +10,8 @@ interface UserDetailPopupProps {
 }
 
 const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
+  const navigate = useNavigate();
+
   return (
     <AnimatePresence>
       {selectedUser && (
@@ -35,7 +39,7 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
               }`}
               style={
                 selectedUser.bannerimgurl
-                  ? { backgroundImage: `url(${selectedUser.bannerimgurl})` }
+                  ? { backgroundImage: `url(${formatImageUrl(selectedUser.bannerimgurl)})` }
                   : {}
               }
             >
@@ -50,7 +54,7 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
               <div className="absolute -bottom-12 left-6 z-10">
                 <img
                   src={
-                    selectedUser.profilepicturl ||
+                    selectedUser.profilepicturl ? formatImageUrl(selectedUser.profilepicturl) :
                     `https://ui-avatars.com/api/?name=${selectedUser.fullname}&background=random`
                   }
                   alt={selectedUser.fullname}
@@ -102,21 +106,21 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
                 </p>
               </div>
 
-              <div className="flex gap-4 mt-auto">
+              <div className="flex gap-4 mb-6">
                 <div className="bg-white/90 px-4 py-3 rounded-xl flex-1 border border-white/50 flex flex-col items-center justify-center text-center shadow-sm">
                   <span className="text-xs font-questrial text-tx-muted font-bold mb-1 uppercase tracking-wider">
                     Peringkat
                   </span>
                   <span
                     className={`text-sm font-bold font-questrial ${
-                      selectedUser.userrank.toLowerCase() === "gold"
+                      selectedUser.userrank?.toLowerCase() === "gold"
                         ? "text-yellow-600"
-                        : selectedUser.userrank.toLowerCase() === "silver"
+                        : selectedUser.userrank?.toLowerCase() === "silver"
                         ? "text-slate-500"
                         : "text-amber-600"
                     }`}
                   >
-                    {selectedUser.userrank}
+                    {selectedUser.userrank || "Bronze"}
                   </span>
                 </div>
                 <div className="bg-bg-fresh px-4 py-3 rounded-xl flex-1 border border-bg-fresh/50 flex flex-col items-center justify-center text-center shadow-sm">
@@ -128,11 +132,22 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
                   </span>
                 </div>
               </div>
+
+              <button
+                 onClick={() => {
+                   onClose();
+                   navigate(`/chats?userId=${selectedUser.userid}`);
+                 }}
+                 className="w-full flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-2xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary transition-all group"
+              >
+                <MessageSquare size={18} className="group-hover:scale-110 transition-transform" />
+                Hubungi Pengguna
+              </button>
             </div>
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </ AnimatePresence>
   );
 };
 

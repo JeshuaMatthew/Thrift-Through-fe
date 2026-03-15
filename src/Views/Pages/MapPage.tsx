@@ -20,14 +20,6 @@ import ItemDetailPopup from "../Components/ItemDetailPopup";
 import { ThriftService, type Item } from "../../Services/ThriftsServices";
 import { CommunityService } from "../../Services/CommunitiesServices";
 
-// ==========================================
-// 1. PIN COMPONENTS (RESOURCES MOVED TO COMPONENTS FOLDER)
-// ==========================================
-
-// ==========================================
-// 2. MAIN MAP PAGE
-// ==========================================
-
 const formatToGeoJSON = (data: any[], type: "community" | "item") => {
   return data.map((point) => ({
     type: "Feature" as const,
@@ -36,6 +28,7 @@ const formatToGeoJSON = (data: any[], type: "community" | "item") => {
       id: point.id,
       name: point.name,
       type,
+      transactionType: point.transactionType,
     },
     geometry: {
       type: "Point" as const,
@@ -118,6 +111,7 @@ const MapPage: React.FC = () => {
         name: i.itemname,
         lng: i.longitude,
         lat: i.latitude,
+        transactionType: i.transaction_type,
       }));
       setItems(formatted);
     };
@@ -203,7 +197,7 @@ const MapPage: React.FC = () => {
       // Mock AI Insights
       setTimeout(() => {
         setAIInsights({
-          predictedMarketPrice: item.itemprice + 50000,
+          predictedMarketPrice: item.itemprice + item.itemprice * 0.1, // Dynamic mock logic
           carbonFootprintSavings: 2.5,
         });
         setIsAILoading(false);
@@ -546,7 +540,7 @@ const MapPage: React.FC = () => {
                   handleItemClick(pinData.id, lng, lat);
                 }}
               >
-                <ItemPins longitude={lng} latitude={lat} name={pinData.name} />
+                <ItemPins longitude={lng} latitude={lat} name={pinData.name} transactionType={pinData.transactionType} />
               </div>
             );
           })}

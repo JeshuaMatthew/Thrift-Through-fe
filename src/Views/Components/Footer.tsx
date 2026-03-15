@@ -10,11 +10,13 @@ const allQuickLinks = [
   { label: "Pesanan", to: "/orders" },
   { label: "Chatku", to: "/chats" },
   { label: "Profilku", to: "/profile" },
+  { label: "Daftar", to: "/register" },
 ];
 
 const publicQuickLinks = [
   { label: "Homepage", to: "/" },
   { label: "Login", to: "/login" },
+  { label: "Daftar", to: "/register" },
 ];
 
 const socialLinks = [
@@ -50,7 +52,7 @@ const Footer = () => {
     // 1. Hapus bg-tx-primary dan text-white dari tag footer ini
     <footer className="w-full font-questrial">
       {/* 2. Hapus bg-bg-clean, ubah style ke Tailwind class -mb-[1px] untuk mencegah garis putih (gap rendering) */}
-      <div className="w-full leading-none z-30 relative -mb-[1px]">
+      <div className="w-full leading-none z-30 relative -mb-px">
         <svg
           className="w-full h-4 sm:h-5 md:h-6 text-tx-primary block"
           preserveAspectRatio="none"

@@ -1,181 +1,197 @@
-// yang ini websocket
-
+import { io, Socket } from "socket.io-client";
 import type { Chat } from "../Types/Chat";
+import AxiosInstance from "../Utils/AxiosInstance";
 
-
-// Tipe untuk callback listener (Saat ada pesan masuk)
+// Real-time listener callback type
 type MessageListener = (chat: Chat) => void;
+type EditListener = (chat: Chat) => void;
+type DeleteListener = (data: { chat_id: number }) => void;
 
-// ==========================================
-// SERVICE CLASS (WEBSOCKET STYLE DUMMY)
-// ==========================================
+// Backend Socket.io URL (Match with your BE .env/port)
+const SOCKET_URL = "http://localhost:3000"; // Corrected to match backend port
+
 export class ChatService {
-    // 1. DUMMY DATABASE
-    // Catatan: datesent diubah dari string ISO menjadi object Date() agar sesuai dengan Interface
-    private chats: Chat[] = [
-        {
-            chatid: 1,
-            communityid: 1,
-            userid: 101,
-            chattext: "Halo teman-teman! Ada info kopdar minggu ini?",
-            datesent: new Date("2023-11-20T08:30:00.000Z")
-        },
-        {
-            chatid: 2,
-            communityid: 1,
-            userid: 102,
-            chattext: "Hai mas Budi, rencana di cafe biasa hari Sabtu jam 4 sore.",
-            datesent: new Date("2023-11-20T08:35:12.000Z")
-        },
-        {
-            chatid: 3,
-            communityid: 1,
-            userid: 101,
-            chattext: "Sip, makasih infonya. Nanti saya usahakan merapat.",
-            datesent: new Date("2023-11-20T08:40:05.000Z")
-        },
-        {
-            chatid: 4,
-            communityid: 2,
-            userid: 103,
-            chattext: "Misi numpang nanya, tempat servis stik PS terdekat daerah Selatan di mana ya?",
-            datesent: new Date("2023-11-20T09:15:00.000Z")
-        }
-    ];
-
-    // 2. WEBSOCKET STATE (Simulasi)
+    private socket: Socket | null = null;
     private currentUserId: number | null = null;
-    private isConnected: boolean = false;
-    private joinedRooms: Set<number> = new Set(); // Menyimpan ID komunitas yang sedang dibuka user
-    private messageListeners: MessageListener[] = []; // Daftar fungsi yang dipanggil saat pesan masuk
+    private messageListeners: MessageListener[] = [];
+    private editListeners: EditListener[] = [];
+    private deleteListeners: DeleteListener[] = [];
 
     // ==========================================
-    // 1. CONNECT & DISCONNECT (Simulasi Socket.io)
+    // 1. CONNECT & DISCONNECT
     // ==========================================
     connect(userId: number): void {
         this.currentUserId = userId;
-        this.isConnected = true;
-        console.log(`[WS] Socket Connected untuk UserID: ${userId}`);
+        if (this.socket) return;
+
+        this.socket = io(SOCKET_URL, {
+            withCredentials: true
+        });
+
+        this.socket.on("connect", () => {
+            console.log("[WS] Connected to Chat Server");
+        });
+
+        // Listen for new messages
+        this.socket.on("receive_message", (data: any) => {
+            const chat: Chat = {
+                chatId: Number(data.chat_id),
+                communityId: Number(data.community_id),
+                userId: Number(data.user_id),
+                chatText: data.chat_text,
+                dateSent: new Date(data.date_sent)
+            };
+            this.messageListeners.forEach(listener => listener(chat));
+        });
+
+        // Listen for edited messages
+        this.socket.on("message_edited", (data: any) => {
+            const chat: Chat = {
+                chatId: Number(data.chat_id),
+                communityId: Number(data.community_id),
+                userId: Number(data.user_id),
+                chatText: data.chat_text,
+                dateSent: new Date(data.date_sent)
+            };
+            this.editListeners.forEach(listener => listener(chat));
+        });
+
+        // Listen for deleted messages
+        this.socket.on("message_deleted", (data: any) => {
+            this.deleteListeners.forEach(listener => listener(data));
+        });
+
+        this.socket.on("error", (err: any) => {
+            console.error("[WS] Socket Error:", err);
+        });
+
+        this.socket.on("disconnect", () => {
+            console.log("[WS] Disconnected from Chat Server");
+        });
     }
 
     disconnect(): void {
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+        }
         this.currentUserId = null;
-        this.isConnected = false;
-        this.joinedRooms.clear();
         this.messageListeners = [];
-        console.log(`[WS] Socket Disconnected.`);
+        this.editListeners = [];
+        this.deleteListeners = [];
     }
 
     // ==========================================
-    // 2. ROOM MANAGEMENT (Simulasi socket.join)
+    // 2. ROOM MANAGEMENT
     // ==========================================
-    // Biasanya saat masuk room, kita juga me-load history chat sebelumnya
-    joinCommunityRoom(communityId: number): Chat[] {
-        if (!this.isConnected) throw new Error("Socket belum terhubung.");
+    async joinCommunityRoom(communityId: number): Promise<Chat[]> {
+        if (!this.socket) throw new Error("Socket not connected.");
         
-        this.joinedRooms.add(communityId);
-        console.log(`[WS] Berhasil join room Komunitas: ${communityId}`);
+        // Join room in WebSocket
+        this.socket.emit("join_room", communityId);
 
-        // Return history chat untuk komunitas ini
-        return this.chats.filter(c => c.communityid === communityId);
-    }
-
-    leaveCommunityRoom(communityId: number): void {
-        this.joinedRooms.delete(communityId);
-        console.log(`[WS] Meninggalkan room Komunitas: ${communityId}`);
+        // Fetch history from REST API
+        try {
+            const response = await AxiosInstance.get(`/chats/${communityId}`);
+            if (response.data && Array.isArray(response.data)) {
+                return response.data.map((c: any) => ({
+                    chatId: Number(c.chat_id),
+                    communityId: Number(c.community_id),
+                    userId: Number(c.user_id),
+                    chatText: c.chat_text,
+                    dateSent: new Date(c.date_sent)
+                }));
+            }
+        } catch (error) {
+            console.error("[WS] Error loading history:", error);
+        }
+        return [];
     }
 
     // ==========================================
-    // 3. LISTEN TO EVENTS (Simulasi socket.on('receive_message'))
+    // 3. LISTEN TO EVENTS
     // ==========================================
     onReceiveMessage(callback: MessageListener): void {
         this.messageListeners.push(callback);
     }
 
+    onMessageEdited(callback: EditListener): void {
+        this.editListeners.push(callback);
+    }
+
+    onMessageDeleted(callback: DeleteListener): void {
+        this.deleteListeners.push(callback);
+    }
+
     // ==========================================
-    // 4. EMIT EVENTS (Simulasi socket.emit('send_message'))
+    // 4. EMIT EVENTS
     // ==========================================
     sendMessage(communityId: number, chattext: string): void {
-        if (!this.isConnected || !this.currentUserId) {
-            console.error("[WS] Error: Tidak bisa mengirim pesan. Socket terputus.");
+        if (!this.socket || !this.currentUserId) {
+            console.error("[WS] Not connected.");
             return;
         }
 
-        // Buat objek pesan baru
-        const newChat: Chat = {
-            chatid: this.chats.length + 1,
-            communityid: communityId,
-            userid: this.currentUserId,
-            chattext: chattext,
-            datesent: new Date() // Waktu saat ini
-        };
-
-        // Simpan ke database
-        this.chats.push(newChat);
-
-        // --- BROADCAST SIMULATION ---
-        // Jika user sedang berada di room komunitas tersebut, trigger event/callback
-        if (this.joinedRooms.has(communityId)) {
-            this.messageListeners.forEach(listener => listener(newChat));
-        }
-    }
-
-    // --- HELPER DUMMY ---
-    // Fungsi ini murni untuk simulasi saja, seolah-olah ada orang lain (User 102) membalas pesan.
-    simulateReplyFromOtherUser(communityId: number, otherUserId: number, text: string) {
-        setTimeout(() => {
-            const replyChat: Chat = {
-                chatid: this.chats.length + 1,
-                communityid: communityId,
-                userid: otherUserId,
-                chattext: text,
-                datesent: new Date()
-            };
-            this.chats.push(replyChat);
-
-            // Jika user kita sedang ada di room tersebut, dia akan menerima notifikasi pesan masuk
-            if (this.joinedRooms.has(communityId)) {
-                this.messageListeners.forEach(listener => listener(replyChat));
-            }
-        }, 2000); // Delay 2 detik agar terasa seperti real-time typing
-    }
-
-    // ==========================================
-    // 5. SEARCH MY CHATS
-    // ==========================================
-    // As ChatService mock only stores pure message data, "searching my chats" 
-    // Usually means filtering the list of community rooms/users by a search term.
-    // In our context on ChatPage, we filter the `ChatListItem`s.
-    // Here is a generic service method to search across chat history as well.
-    searchMyChats(searchTerm: string, userId: number): Chat[] {
-        const lowerTerm = searchTerm.toLowerCase();
-        return this.chats.filter(c => 
-            (c.userid === userId || this.joinedRooms.has(c.communityid)) &&
-            c.chattext.toLowerCase().includes(lowerTerm)
-        );
-    }
-
-    // ==========================================
-    // 6. EDIT & DELETE CHATS
-    // ==========================================
-    editMessage(chatId: number, userId: number, newText: string): boolean {
-        const chatIndex = this.chats.findIndex(c => c.chatid === chatId && c.userid === userId);
-        if (chatIndex !== -1) {
-            this.chats[chatIndex].chattext = newText;
-            // Di environment nyata, kita akan membroadcast bahwa pesan di-edit ke semua user di room tersebut
-            return true;
-        }
-        return false;
-    }
-
-    deleteMessages(chatIds: number[], userId: number): boolean {
-        let anyDeleted = false;
-        this.chats.forEach(chat => {
-            if (chatIds.includes(chat.chatid) && chat.userid === userId) {
-                chat.chattext = "pesan ini dihapus oleh pengguna";
-                anyDeleted = true;
-            }
+        this.socket.emit("send_message", {
+            community_id: communityId,
+            user_id: this.currentUserId,
+            chat_text: chattext
         });
-        return anyDeleted;
+    }
+
+    editMessage(chatId: number, communityId: number, newText: string): void {
+        if (!this.socket || !this.currentUserId) return;
+        
+        this.socket.emit("edit_message", {
+            chat_id: chatId,
+            community_id: communityId,
+            new_text: newText,
+            user_id: this.currentUserId
+        });
+    }
+
+    deleteMessages(chatIds: number[], communityId: number): void {
+        if (!this.socket || !this.currentUserId) return;
+        
+        chatIds.forEach(id => {
+            this.socket?.emit("delete_message", {
+                chat_id: id,
+                community_id: communityId,
+                user_id: this.currentUserId
+            });
+        });
+    }
+
+    // ==========================================
+    // 5. API CALLS
+    // ==========================================
+    async getMyChatList(): Promise<any[]> {
+        try {
+            const response = await AxiosInstance.get("/chats/my-chats");
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching chat list:", error);
+            return [];
+        }
+    }
+
+    async searchMyChats(keyword: string): Promise<Chat[]> {
+        try {
+            const response = await AxiosInstance.get("/chats/search", {
+                params: { keyword }
+            });
+            if (response.data && Array.isArray(response.data.messages)) {
+                return response.data.messages.map((c: any) => ({
+                    chatId: Number(c.chat_id),
+                    communityId: Number(c.community_id),
+                    userId: Number(c.user_id),
+                    chatText: c.chat_text,
+                    dateSent: new Date(c.date_sent)
+                }));
+            }
+            return [];
+        } catch (error) {
+            return [];
+        }
     }
 }

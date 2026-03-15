@@ -1,161 +1,149 @@
 import type { Login } from "../Types/Login";
+import type { RegisterData } from "../Types/Register";
 import type { User } from "../Types/User";
 import AxiosInstance from "../Utils/AxiosInstance";
+import { formatImageUrl } from "../Utils/FormatUrl";
 
-// untuk cek apakah sudah login (cookies) atau belum
-// export const getMe = async() => {
-//   return AxiosInstance.get("/api/me");
-// };
+// Helper function to map backend user data to frontend User interface
+const mapUser = (data: any): User => {
+    return {
+        userid: data.user_id,
+        fullname: data.full_name,
+        username: data.user_name,
+        email: data.email,
+        phonenum: data.phone_num || '',
+        userrank: data.user_rank || '',
+        userpoint: data.user_point || 0,
+        profilepicturl: formatImageUrl(data.profile_pict_url),
+        bannerimgurl: formatImageUrl(data.banner_img_url)
+    };
+};
 
-// update profile
-// Login
-// Logout
-// Get my profile
-
-// ==========================================
-// INTERFACES
-// ==========================================
-
-
-// Interface internal untuk simulasi Database (Menyimpan password)
-interface UserDB extends User {
-    password: string;
-}
-
-// ==========================================
-// SERVICE CLASS
-// ==========================================
 export class AuthService {
-    // 1. Simulasi Database User beserta Password-nya
-    private get usersDB(): UserDB[] {
-        const data = localStorage.getItem('usersDB');
-        if (data) return JSON.parse(data);
-        
-        const defaultData: UserDB[] = [
-            {
-                userid: 101,
-                fullname: "Jeshua Matthew",
-                username: "Eeimmors",
-                profilepicturl: "https://i.pravatar.cc/150?u=budisans99",
-                email: "matthew@gmail.com",
-                phonenum: "+6281234567890",
-                userrank: "Gold",
-                userpoint: 2500,
-                password: "12345678" // Password simulasi
-            },
-            {
-                userid: 102,
-                fullname: "Siti Aminah",
-                username: "sitiaminah",
-                profilepicturl: "https://i.pravatar.cc/150?u=sitiaminah",
-                email: "siti.aminah@example.com",
-                phonenum: "+6289876543210",
-                userrank: "Silver",
-                userpoint: 1250,
-                password: "siti secure" // Password simulasi
-            }
-        ];
-        localStorage.setItem('usersDB', JSON.stringify(defaultData));
-        return defaultData;
-    }
-
-    private set usersDB(data: UserDB[]) {
-        localStorage.setItem('usersDB', JSON.stringify(data));
-    }
-
-    // 2. Simulasi Cookies / Token JWT (Jika null berarti belum login)
-    private get currentSessionUserId(): number | null {
-        const id = sessionStorage.getItem('currentSessionUserId');
-        return id ? parseInt(id, 10) : null;
-    }
-
-    private set currentSessionUserId(id: number | null) {
-        if (id !== null) {
-            sessionStorage.setItem('currentSessionUserId', id.toString());
-        } else {
-            sessionStorage.removeItem('currentSessionUserId');
-        }
-    }
-
-    // ==========================================
     // 1. LOGIN
-    // ==========================================
     async login(credentials: Login): Promise<{ success: boolean; message: string; data?: User }> {
-        // Cari user berdasarkan Email dan Password
-        const user = this.usersDB.find(u => u.email === credentials.Email && u.password === credentials.Password);
-
-        if (!user) {
-            return { success: false, message: "Login Gagal: Email atau Password salah." };
+        try {
+            const response = await AxiosInstance.post("/users/login", {
+                email: credentials.Email,
+                password: credentials.Password
+            });
+            
+            if (response.data.user) {
+                return { 
+                    success: true, 
+                    message: response.data.message || "Login Berhasil.", 
+                    data: mapUser(response.data.user)
+                };
+            }
+            return { success: false, message: "Login Gagal." };
+        } catch (error: any) {
+            return { 
+                success: false, 
+                message: error.response?.data?.error || "Login Gagal: Email atau Password salah." 
+            };
         }
-
-        // SET COOKIES / SESSION (Simulasi)
-        this.currentSessionUserId = user.userid;
-
-        // Hilangkan password dari balikan data demi keamanan (Destructuring)
-        const { password, ...userWithoutPassword } = user;
-
-        return { success: true, message: "Login Berhasil.", data: userWithoutPassword };
     }
 
-    // ==========================================
+    // 1.b REGISTER
+    async register(data: RegisterData): Promise<{ success: boolean; message: string }> {
+        try {
+            const formData = new FormData();
+            formData.append('full_name', data.fullName);
+            formData.append('user_name', data.userName);
+            formData.append('email', data.email);
+            formData.append('phone_num', data.phoneNum);
+            if (data.password) formData.append('password', data.password);
+            
+            if (data.profilePict) {
+                formData.append('image', data.profilePict);
+            }
+            if (data.bannerImg) {
+                formData.append('banner', data.bannerImg);
+            }
+
+            const response = await AxiosInstance.post("/users", formData);
+            
+            return { 
+                success: true, 
+                message: response.data.message || "Registrasi Berhasil. Silakan login." 
+            };
+        } catch (error: any) {
+            return { 
+                success: false, 
+                message: error.response?.data?.error || "Registrasi Gagal." 
+            };
+        }
+    }
+
     // 2. GET ME (Check Cookies)
-    // ==========================================
-    // Fungsi ini biasanya dipanggil saat web di-refresh untuk mengecek apakah user masih punya session/cookie aktif
-    async getMe(): Promise<{ isAuthenticated: boolean; userid?: number }> {
-        if (this.currentSessionUserId !== null) {
-            return { isAuthenticated: true, userid: this.currentSessionUserId };
+    async getMe(): Promise<{ isAuthenticated: boolean; user?: User }> {
+        try {
+            const response = await AxiosInstance.get("/users/me");
+            if (response.data) {
+                return { isAuthenticated: true, user: mapUser(response.data) };
+            }
+            return { isAuthenticated: false };
+        } catch (error) {
+            return { isAuthenticated: false };
         }
-        return { isAuthenticated: false };
     }
 
-    // ==========================================
     // 3. GET MY PROFILE
-    // ==========================================
     async getMyProfile(): Promise<{ success: boolean; message: string; data?: User }> {
-        // Cek Auth
-        if (!this.currentSessionUserId) {
-            return { success: false, message: "Unauthorized. Silakan login terlebih dahulu." };
+        try {
+            const response = await AxiosInstance.get("/users/me");
+            if (response.data) {
+                return { 
+                    success: true, 
+                    message: "Profil berhasil diambil.", 
+                    data: mapUser(response.data) 
+                };
+            }
+            return { success: false, message: "Data pengguna tidak ditemukan." };
+        } catch (error: any) {
+            return { 
+                success: false, 
+                message: error.response?.data?.error || "Unauthorized. Silakan login terlebih dahulu." 
+            };
         }
-
-        const user = this.usersDB.find(u => u.userid === this.currentSessionUserId);
-
-        if (!user) return { success: false, message: "Data pengguna tidak ditemukan." };
-
-        const { password, ...userProfile } = user;
-        return { success: true, message: "Profil berhasil diambil.", data: userProfile };
     }
 
-    // ==========================================
     // 4. UPDATE PROFILE
-    // ==========================================
-    // Menggunakan Partial untuk membolehkan update sebagian field.
-    // Omit digunakan agar user tidak bisa iseng mengubah Rank, Point, atau UserID mereka sendiri.
     async updateProfile(updateData: Partial<Omit<User, 'userid' | 'userrank' | 'userpoint'>>): Promise<{ success: boolean; message: string; data?: User }> {
-        // Cek Auth
-        if (!this.currentSessionUserId) {
-            return { success: false, message: "Unauthorized. Silakan login terlebih dahulu." };
+        try {
+            // Mapping frontend keys to backend keys for update
+            const backendData: any = {};
+            if (updateData.fullname) backendData.full_name = updateData.fullname;
+            if (updateData.username) backendData.user_name = updateData.username;
+            if (updateData.email) backendData.email = updateData.email;
+            if (updateData.phonenum) backendData.phone_num = updateData.phonenum;
+
+            const response = await AxiosInstance.put("/users/me", backendData);
+            if (response.data) {
+                return { 
+                    success: true, 
+                    message: "Profil berhasil diperbarui.", 
+                    data: mapUser(response.data) 
+                };
+            }
+            return { success: false, message: "Gagal memperbarui profil." };
+        } catch (error: any) {
+            return { 
+                success: false, 
+                message: error.response?.data?.error || "Unauthorized. Silakan login terlebih dahulu." 
+            };
         }
-
-        const db = this.usersDB;
-        const index = db.findIndex(u => u.userid === this.currentSessionUserId);
-
-        if (index === -1) return { success: false, message: "User tidak ditemukan." };
-
-        // Gabungkan data lama dengan data baru
-        db[index] = { ...db[index], ...updateData };
-        this.usersDB = db;
-
-        const { password, ...updatedProfile } = db[index];
-
-        return { success: true, message: "Profil berhasil diperbarui.", data: updatedProfile };
     }
 
-    // ==========================================
     // 5. LOGOUT
-    // ==========================================
     async logout(): Promise<{ success: boolean; message: string }> {
-        // CLEAR COOKIES / SESSION
-        this.currentSessionUserId = null;
-        return { success: true, message: "Logout berhasil. Sesi telah dihapus." };
+        try {
+            // Backend should clear the cookie
+            await AxiosInstance.post("/users/logout");
+            return { success: true, message: "Logout berhasil. Sesi telah dihapus." };
+        } catch (error) {
+            // Even if request fails, we consider it logged out locally
+            return { success: true, message: "Logout berhasil." };
+        }
     }
 }

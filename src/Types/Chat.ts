@@ -1,7 +1,7 @@
-export interface Chat{
-    chatid: number;
-    communityid: number;
-    userid: number;
-    chattext: string;
-    datesent: Date;
+export interface Chat {
+    chatId: number;
+    communityId: number;
+    userId: number;
+    chatText: string;
+    dateSent: Date;
 }

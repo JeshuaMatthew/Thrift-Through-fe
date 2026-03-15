@@ -17,7 +17,10 @@ const BaseNavbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navLinks = [{ name: "Login", path: "/login" }];
+  const navLinks = [
+    { name: "Login", path: "/login" },
+    { name: "Daftar", path: "/register" },
+  ];
 
   // Determine navbar styles based on route and scroll state
   // Transparent on homepage when top, solid everywhere else or when scrolled

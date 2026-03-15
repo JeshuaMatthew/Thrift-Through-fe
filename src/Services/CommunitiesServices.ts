@@ -1,213 +1,232 @@
-// DELETE COMMUNITY
-// GET COMMUNITY DETAIL BY ID (DESCRIPTION, FOTO, LIST OF USERS)
-// GET ALL COMMUNITIES
-// CREATE COMMUNITY 
-// UPDATE COMMUNITY
-
-import type {Community} from "../Types/Community";
-import type {User} from "../Types/User";
-import { CommunityMembersServices } from "./CommunityMembersServices";
+import type { Community } from "../Types/Community";
+import type { User } from "../Types/User";
+import AxiosInstance from "../Utils/AxiosInstance";
+import { formatImageUrl } from "../Utils/FormatUrl";
 
 // Interface balikan untuk Get Detail (Komunitas + Daftar Anggota Lengkap)
 export interface CommunityDetail extends Community {
     members: User[];
 }
 
-// ==========================================
-// SERVICE CLASS
-// ==========================================
+// Helper to map backend community to frontend Community interface
+const mapCommunity = (data: any): Community => {
+    return {
+        communityid: data.community_id,
+        communityname: data.community_name,
+        description: data.description,
+        profilepicturl: formatImageUrl(data.profile_pict_url) || '',
+        bannerurl: formatImageUrl(data.banner_img_url),
+        longitude: data.longitude ? parseFloat(data.longitude) : undefined,
+        latitude: data.latitude ? parseFloat(data.latitude) : undefined,
+        isPublic: data.is_public,
+        userid: data.created_by // Note: Backend schema might vary, assuming created_by if available
+    };
+};
+
+// Helper to map backend user to frontend User interface (Reused)
+const mapUser = (data: any): User => {
+    return {
+        userid: data.user_id,
+        fullname: data.full_name,
+        username: data.user_name,
+        email: data.email,
+        phonenum: data.phone_num || '',
+        userrank: data.user_rank || 'Bronze',
+        userpoint: data.user_point || 0,
+        profilepicturl: formatImageUrl(data.profile_pict_url),
+        bannerimgurl: formatImageUrl(data.banner_img_url)
+    };
+};
+
 export class CommunityService {
-    // 1. Data Simulasi Tabel Communities
-    private communities: Community[] = [
-        {
-            communityid: 1,
-            userid: 101,
-            description: "Tempat ngumpulnya para pencari cuan dan peluang bisnis sampingan di area Jakarta Pusat.",
-            profilepicturl: "https://example.com/images/com-cuan.jpg",
-            communityname: "Komunitas Pencari Duid",
-            bannerurl: "https://example.com/banners/com-cuan-banner.jpg",
-            longitude: 107.5750,
-            latitude: -6.8000,
-            isPublic: true
-        },
-        {
-            communityid: 2,
-            userid: 102,
-            description: "Forum diskusi, jual beli part, dan berbagi tips seputar perbaikan stik konsol game.",
-            profilepicturl: "https://example.com/images/com-xbox.jpg",
-            communityname: "Komunitas Servis Stick Xbox",
-            bannerurl: "https://example.com/banners/com-xbox-banner.jpg",
-            longitude: 107.5800,
-            latitude: -6.8100,
-            isPublic: false
-        },
-        {
-            communityid: 3,
-            userid: 103,
-            description: "Grup online khusus bagi para kolektor barang antik dan retro di seluruh Nusantara.",
-            profilepicturl: "https://example.com/images/com-retro.jpg",
-            communityname: "Kolektor Barang Retro ID",
-            bannerurl: "https://example.com/banners/com-retro-banner.jpg",
-            isPublic: false
-        }
-    ];
-
-    // 2. Data Simulasi Tabel Users (Menggunakan Interface User yang lengkap)
-    private users: User[] = [
-        {
-            userid: 101,
-            fullname: "Budi Santoso",
-            username: "budisans99",
-            profilepicturl: "https://i.pravatar.cc/150?u=budisans99",
-            email: "budi.santoso@example.com",
-            phonenum: "+6281234567890",
-            userrank: "Gold",
-            userpoint: 2500
-        },
-        {
-            userid: 102,
-            fullname: "Siti Aminah",
-            username: "sitiaminah",
-            profilepicturl: "https://i.pravatar.cc/150?u=sitiaminah",
-            email: "siti.aminah@example.com",
-            phonenum: "+6289876543210",
-            userrank: "Silver",
-            userpoint: 1250
-        },
-        {
-            userid: 103,
-            fullname: "Andi Darmawan",
-            username: "andydrmwn",
-            profilepicturl: "https://i.pravatar.cc/150?u=andydrmwn",
-            email: "andi.darmawan@example.com",
-            phonenum: "+6285555555555",
-            userrank: "Bronze",
-            userpoint: 450
-        }
-    ];
-
-
     // ==========================================
     // 1. GET ALL COMMUNITIES
     // ==========================================
-    async getAllCommunities(): Promise<Community[]> {
-        return [...this.communities];
+    async getAllCommunities(params?: any): Promise<{ communities: Community[]; meta: any }> {
+        try {
+            const response = await AxiosInstance.get("/communities", { params });
+            if (response.data && Array.isArray(response.data.communities)) {
+                return {
+                    communities: response.data.communities.map(mapCommunity),
+                    meta: response.data.meta
+                };
+            }
+            return { communities: [], meta: {} };
+        } catch (error) {
+            console.error("Error fetching communities:", error);
+            return { communities: [], meta: {} };
+        }
     }
 
-    /**
-     * Helper Method: Rumus Haversine untuk menghitung jarak GPS (dalam Kilometer)
-     */
-    private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-        const R = 6371; // Radius bumi dalam kilometer
-        const dLat = (lat2 - lat1) * (Math.PI / 180);
-        const dLon = (lon2 - lon1) * (Math.PI / 180);
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c; // Hasil dalam km
+    async getMyCommunities(params?: any): Promise<{ communities: Community[]; meta: any }> {
+        try {
+            const response = await AxiosInstance.get("/communities/my-communities", { params });
+            if (response.data && Array.isArray(response.data.communities)) {
+                return {
+                    communities: response.data.communities.map(mapCommunity),
+                    meta: response.data.meta
+                };
+            }
+            return { communities: [], meta: {} };
+        } catch (error) {
+            console.error("Error fetching my communities:", error);
+            return { communities: [], meta: {} };
+        }
+    }
+
+    async getCommunityMembers(id: number): Promise<any[]> {
+        try {
+            const response = await AxiosInstance.get(`/communities/${id}/members`);
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching members:", error);
+            return [];
+        }
+    }
+
+    async addMemberByEmail(id: number, email: string): Promise<{ success: boolean; message: string }> {
+        try {
+            const response = await AxiosInstance.post(`/communities/${id}/members`, { email });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, message: error.response?.data?.error || "Gagal menambah anggota" };
+        }
+    }
+
+    async updateMemberStatus(communityId: number, memberId: number, status: string): Promise<{ success: boolean; message: string }> {
+        try {
+            const response = await AxiosInstance.put(`/communities/${communityId}/members/${memberId}`, { status });
+            return response.data;
+        } catch (error: any) {
+            return { success: false, message: error.response?.data?.error || "Gagal mengubah status" };
+        }
     }
 
     // ==========================================
     // 1.b GET COMMUNITIES IN AREA
     // ==========================================
-    async getCommunitiesInArea(userLat: number, userLng: number, radiusKm: number): Promise<(Community & { distanceKm: number })[]> {
-        const commsInArea = this.communities
-            .filter(c => c.latitude !== undefined && c.longitude !== undefined)
-            .map(c => {
-                const distance = this.calculateDistance(userLat, userLng, c.latitude as number, c.longitude as number);
-                return { ...c, distanceKm: distance };
-            })
-            .filter(c => c.distanceKm <= radiusKm);
-
-        return commsInArea.sort((a, b) => a.distanceKm - b.distanceKm);
+    async getCommunitiesInArea(lat: number, lng: number, radius: number): Promise<(Community & { distanceKm: number })[]> {
+        try {
+            const response = await AxiosInstance.get("/communities/nearby", {
+                params: { lat, lng, radius }
+            });
+            if (response.data && Array.isArray(response.data.communities)) {
+                return response.data.communities.map((c: any) => ({
+                    ...mapCommunity(c),
+                    distanceKm: parseFloat(c.distance) || 0
+                }));
+            }
+            return [];
+        } catch (error) {
+            console.error("Error fetching nearby communities:", error);
+            return [];
+        }
     }
 
     // ==========================================
     // 2. GET COMMUNITY DETAIL BY ID
     // ==========================================
     async getCommunityDetailById(communityId: number): Promise<CommunityDetail | null> {
-        const community = this.communities.find(c => c.communityid === communityId);
-        if (!community) return null;
+        try {
+            const response = await AxiosInstance.get(`/communities/${communityId}`);
+            if (!response.data) return null;
+            
+            const community = mapCommunity(response.data);
+            let members: User[] = [];
+            try {
+                const membersResponse = await AxiosInstance.get(`/communities/${communityId}/members`);
+                if (Array.isArray(membersResponse.data)) {
+                    members = membersResponse.data.map(mapUser);
+                }
+            } catch (e) {
+                console.warn("Could not fetch members for community", communityId);
+            }
 
-        // Cari semua userid yang tergabung di komunitas ini melalui service anggota
-        const memberService = new CommunityMembersServices();
-        const allMembersData = await memberService.getMembersByCommunityId(communityId);
-        
-        // Hanya ambil yang statusnya sudah 'assigned' (bukan pending)
-        const activeMemberIds = allMembersData
-            .filter(m => m.status === 'assigned')
-            .map(m => m.MemberId);
-
-        // Ambil objek user secara utuh (termasuk email, rank, point, dll)
-        const membersList = this.users.filter(u => activeMemberIds.includes(u.userid));
-
-        return {
-            ...community,
-            members: membersList
-        };
+            return {
+                ...community,
+                members
+            };
+        } catch (error) {
+            return null;
+        }
     }
 
     // ==========================================
     // 3. CREATE COMMUNITY
     // ==========================================
-    async createCommunity(newCommunityData: Omit<Community, 'communityid'>): Promise<Community> {
-        const newId = this.communities.length > 0 
-            ? Math.max(...this.communities.map(c => c.communityid)) + 1 
-            : 1;
-
-        const newCommunity: Community = {
-            communityid: newId,
-            ...newCommunityData
-        };
-
-        this.communities.push(newCommunity);
-
-        // (Harusnya dihubungkan: Otomatis memanggil memberService.joinCommunity sebagai admin)
-        // Namun karena ini mock DB sederhana, akan sedikit rumit menyinkronkan data instance antar modul tanpa db beneran
-        // Sementara create dibiarkan karena logic admin dan detail member dipindahkan.
-
-        return newCommunity;
+    async createCommunity(newCommunityData: Omit<Community, 'communityid'>): Promise<Community | null> {
+        try {
+            const backendData = {
+                community_name: newCommunityData.communityname,
+                description: newCommunityData.description,
+                longitude: newCommunityData.longitude,
+                latitude: newCommunityData.latitude,
+                is_public: newCommunityData.isPublic,
+                profilepicturl: newCommunityData.profilepicturl,
+                bannerurl: newCommunityData.bannerurl,
+                community_type: (newCommunityData as any).community_type
+            };
+            const response = await AxiosInstance.post("/communities", backendData);
+            if (response.data && response.data.community) {
+                return mapCommunity(response.data.community);
+            }
+            return null;
+        } catch (error) {
+            return null;
+        }
     }
 
     // ==========================================
     // 4. UPDATE COMMUNITY
     // ==========================================
-    async updateCommunity(communityId: number, currentUserId: number, updateData: Partial<Community>): Promise<{ success: boolean; message: string; data?: Community }> {
-        const index = this.communities.findIndex(c => c.communityid === communityId);
+    async updateCommunity(communityId: number, _currentUserId: number, updateData: Partial<Community>): Promise<{ success: boolean; message: string; data?: Community }> {
+        try {
+            const backendData: any = {};
+            if (updateData.communityname) backendData.community_name = updateData.communityname;
+            if (updateData.description) backendData.description = updateData.description;
+            if (updateData.isPublic !== undefined) backendData.is_public = updateData.isPublic;
+            if (updateData.profilepicturl) backendData.profilepicturl = updateData.profilepicturl;
+            if (updateData.bannerurl) backendData.bannerurl = updateData.bannerurl;
 
-        if (index === -1) return { success: false, message: "Komunitas tidak ditemukan." };
-
-        if (this.communities[index].userid !== currentUserId) {
-            return { success: false, message: "Akses ditolak: Hanya admin yang dapat mengubah komunitas ini." };
+            const response = await AxiosInstance.put(`/communities/${communityId}`, backendData);
+            if (response.data) {
+                return { 
+                    success: true, 
+                    message: "Komunitas diupdate.", 
+                    data: mapCommunity(response.data) 
+                };
+            }
+            return { success: false, message: "Gagal mengupdate komunitas." };
+        } catch (error: any) {
+            return { 
+                success: false, 
+                message: error.response?.data?.error || "Gagal mengupdate komunitas." 
+            };
         }
-
-        delete updateData.communityid; // Cegah update ID komunitas
-        delete updateData.userid;      // Cegah update ID kepemilikan admin
-
-        this.communities[index] = { ...this.communities[index], ...updateData };
-
-        return { success: true, message: "Komunitas diupdate.", data: this.communities[index] };
     }
 
     // ==========================================
     // 5. DELETE COMMUNITY
     // ==========================================
-    async deleteCommunity(communityId: number, currentUserId: number): Promise<{ success: boolean; message: string }> {
-        const index = this.communities.findIndex(c => c.communityid === communityId);
-
-        if (index === -1) return { success: false, message: "Komunitas tidak ditemukan." };
-
-        if (this.communities[index].userid !== currentUserId) {
-            return { success: false, message: "Akses ditolak: Hanya admin yang dapat menghapus komunitas ini." };
+    async deleteCommunity(communityId: number, _currentUserId: number): Promise<{ success: boolean; message: string }> {
+        try {
+            await AxiosInstance.delete(`/communities/${communityId}`);
+            return { success: true, message: "Komunitas berhasil dibubarkan." };
+        } catch (error: any) {
+            return { 
+                success: false, 
+                message: error.response?.data?.error || "Gagal menghapus komunitas." 
+            };
         }
+    }
 
-        // Hapus data komunitas
-        this.communities.splice(index, 1);
-
-        // Hapus data keanggotaan terkait (ideal: panggil CommunityMembersServices untuk menghapus semua relasi)
-
-        return { success: true, message: "Komunitas berhasil dibubarkan." };
+    async getOrCreateDM(targetUserId: number): Promise<{ message: string; community_id: number } | null> {
+        try {
+            const response = await AxiosInstance.post("/communities/direct-chat", { targetUserId });
+            return response.data;
+        } catch (error) {
+            console.error("Error creating DM:", error);
+            return null;
+        }
     }
 }

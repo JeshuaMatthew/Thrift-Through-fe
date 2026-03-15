@@ -23,6 +23,7 @@ import ChatPage from "./Pages/ChatPage";
 import ProfilePage from "./Pages/ProfilePage";
 import MarketPage from "./Pages/MarketPage";
 import OrdersPage from "./Pages/OrdersPage";
+import RegisterPage from "./Pages/RegisterPage";
 import { AuthProvider } from "../Utils/Hooks/AuthProvider";
 
 function App() {
@@ -56,6 +57,7 @@ function App() {
         >
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
       </>,
     ),

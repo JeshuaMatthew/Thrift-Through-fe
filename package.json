@@ -18,8 +18,10 @@
     "maplibre-gl": "^5.19.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-image-crop": "^11.0.10",
     "react-map-gl": "^8.1.0",
     "react-router-dom": "^7.13.1",
+    "socket.io-client": "^4.8.3",
     "supercluster": "^8.0.1",
     "tailwindcss": "^4.2.1",
     "use-supercluster": "^1.2.0"

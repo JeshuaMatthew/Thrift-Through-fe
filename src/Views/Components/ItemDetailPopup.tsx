@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MessageSquare, ShoppingBag, Sparkles, TrendingUp, Leaf } from "lucide-react";
 import type { Item } from "../../Services/ThriftsServices";
+import { formatImageUrl } from "../../Utils/FormatUrl";
+import { useNavigate } from "react-router-dom";
 
 interface AIInsights {
   predictedMarketPrice: number;
@@ -22,6 +24,8 @@ const ItemDetailPopup = ({
   aiInsights,
   isAILoading,
 }: ItemDetailPopupProps) => {
+  const navigate = useNavigate();
+
   return (
     <AnimatePresence>
       {selectedItem && (
@@ -43,7 +47,7 @@ const ItemDetailPopup = ({
           >
             <div className="relative shrink-0">
               <img
-                src={selectedItem.itempicturl}
+                src={selectedItem.itempicturl.startsWith('data:') ? selectedItem.itempicturl : formatImageUrl(selectedItem.itempicturl)}
                 alt={selectedItem.itemname}
                 className="w-full h-56 object-cover bg-white/20"
               />
@@ -69,9 +73,9 @@ const ItemDetailPopup = ({
               </div>
 
               <div className="flex items-center justify-between mb-6">
-                <div className="bg-bg-fresh px-4 py-2 rounded-xl shadow-sm border border-bg-fresh/50 w-full text-center">
+                <div className={`${selectedItem.transaction_type === 'Barter' ? 'bg-bg-vermillion border-bg-vermillion/50' : 'bg-bg-fresh border-bg-fresh/50'} px-4 py-2 rounded-xl shadow-sm border w-full text-center`}>
                   <p className="text-2xl font-gasoek text-tx-primary">
-                    Rp {selectedItem.itemprice.toLocaleString("id-ID")}
+                    {selectedItem.transaction_type === 'Barter' ? 'BARTER' : `Rp ${selectedItem.itemprice.toLocaleString("id-ID")}`}
                   </p>
                 </div>
               </div>
@@ -95,48 +99,74 @@ const ItemDetailPopup = ({
                       <div className="h-12 bg-white/5 rounded-xl animate-pulse"></div>
                       <div className="h-12 bg-white/5 rounded-xl animate-pulse"></div>
                     </div>
-                  ) : aiInsights ? (
+                  ) : (aiInsights || selectedItem.marketprice || selectedItem.ai_carbon_analysis) ? (
                     <div className="flex flex-col gap-4">
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                      >
-                        <div className="p-2.5 bg-blue-500/20 rounded-lg shrink-0">
-                          <TrendingUp className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-gasoek font-normal tracking-wide text-white/50 mb-1 uppercase">
-                            Estimasi Pasar
-                          </p>
-                          <p className="text-xl font-gasoek font-normal tracking-wide text-white">
-                            Rp{" "}
-                            {aiInsights.predictedMarketPrice.toLocaleString(
-                              "id-ID",
-                            )}
-                          </p>
-                        </div>
-                      </motion.div>
+                      {/* Market Price Analysis */}
+                      {(aiInsights?.predictedMarketPrice || selectedItem.marketprice) && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.1 }}
+                          className="flex flex-col gap-2 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="p-2.5 bg-blue-500/20 rounded-lg shrink-0">
+                              <TrendingUp className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-gasoek font-normal tracking-wide text-white/50 mb-1 uppercase">
+                                Estimasi Pasar
+                              </p>
+                              <p className="text-xl font-gasoek font-normal tracking-wide text-white">
+                                Rp{" "}
+                                {(aiInsights?.predictedMarketPrice || parseFloat(selectedItem.marketprice || "0")).toLocaleString(
+                                  "id-ID",
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          {selectedItem.ai_price_analysis_text && (
+                            <p className="text-[10px] font-questrial text-white/60 italic border-t border-white/5 pt-2 mt-1">
+                              {selectedItem.ai_price_analysis_text}
+                            </p>
+                          )}
+                        </motion.div>
+                      )}
 
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                      >
-                        <div className="p-2.5 bg-bg-fresh/20 rounded-lg shrink-0">
-                          <Leaf className="w-5 h-5 text-bg-fresh" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-gasoek font-normal tracking-wide text-white/50 mb-1 uppercase">
-                            Eco Impact
-                          </p>
-                          <p className="text-xl font-gasoek font-normal tracking-wide text-bg-fresh">
-                            -{aiInsights.carbonFootprintSavings} kg CO2e
-                          </p>
-                        </div>
-                      </motion.div>
+                      {/* Carbon Impact Analysis */}
+                      {(aiInsights?.carbonFootprintSavings || selectedItem.ai_carbon_analysis) && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2 }}
+                          className="flex flex-col gap-2 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="p-2.5 bg-bg-fresh/20 rounded-lg shrink-0">
+                              <Leaf className="w-5 h-5 text-bg-fresh" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-gasoek font-normal tracking-wide text-white/50 mb-1 uppercase">
+                                Eco Impact
+                              </p>
+                              <p className="text-xl font-gasoek font-normal tracking-wide text-bg-fresh">
+                                -{aiInsights?.carbonFootprintSavings || selectedItem.ai_carbon_analysis} kg CO2e
+                              </p>
+                            </div>
+                          </div>
+                          {selectedItem.ai_carbon_analysis_text && (
+                            <p className="text-[10px] font-questrial text-white/60 italic border-t border-white/5 pt-2 mt-1">
+                              {selectedItem.ai_carbon_analysis_text}
+                            </p>
+                          )}
+                        </motion.div>
+                      )}
+                      
+                      {selectedItem.lastupdatedPrice && (
+                        <p className="text-[9px] text-white/30 text-right uppercase tracking-tighter">
+                          Analisis Terakhir: {new Date(selectedItem.lastupdatedPrice).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-xs text-white/40 font-questrial py-2 text-center">
@@ -159,13 +189,19 @@ const ItemDetailPopup = ({
                 <div className="mt-auto">{footer}</div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 mt-auto">
-                  <button className="flex items-center justify-center gap-1.5 py-3.5 bg-bg-fresh text-tx-primary hover:bg-white rounded-lg text-sm font-bold font-questrial transition-colors shadow-md">
+                  <button 
+                    onClick={() => {
+                      onClose();
+                      navigate(`/chats?userId=${selectedItem.userid}`);
+                    }}
+                    className="flex items-center justify-center gap-1.5 py-3.5 bg-bg-fresh text-tx-primary hover:bg-white rounded-lg text-sm font-bold font-questrial transition-colors shadow-md"
+                  >
                     <MessageSquare size={18} />
                     Chat Penjual
                   </button>
                   <button className="flex items-center justify-center gap-1.5 py-3.5 bg-tx-primary hover:bg-black text-bg-clean rounded-lg text-sm font-bold font-questrial shadow-md transition-colors">
                     <ShoppingBag size={18} />
-                    Beli Barang
+                    {selectedItem.transaction_type === 'Barter' ? 'Barter Barang' : 'Beli Barang'}
                   </button>
                 </div>
               )}
