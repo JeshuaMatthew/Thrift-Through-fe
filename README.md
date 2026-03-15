@@ -1,6 +1,6 @@
 # Thrift-Through Frontend
 
-Aplikasi frontend interaktif untuk platform Thrift-Through, memudahkan pengguna dalam mengelola e-waste dan berinteraksi dalam ekosistem thrifting.
+Frontend dari thrift-through (aplikasi penjualan/penukaran barang bekas elektronik)
 
 ## Tech Stack
 
