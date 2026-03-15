@@ -549,9 +549,7 @@ const CommunityPage = () => {
                               profilepicturl: m.profile_pict_url,
                               email: m.email,
                               phonenum: m.phone_num,
-                              userrank: m.user_rank,
                               bannerimgurl: m.banner_img_url,
-                              userpoint: m.user_point
                             })}
                           >
                             <div className="flex items-center gap-3">

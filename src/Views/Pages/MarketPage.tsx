@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../Utils/Hooks/AuthProvider";
 import { ThriftService, type Item } from "../../Services/ThriftsServices";
 import { UserService } from "../../Services/UserServices";
+import { TransactionServices } from "../../Services/TransactionServices";
 import type { User } from "../../Types/User";
-import { Search, MessageSquare, ShoppingBag } from "lucide-react";
+import { Search, MessageSquare, ShoppingBag, Loader2 } from "lucide-react";
 import ThriftSkeleton from "../Components/ThriftSkeleton";
 import UserDetailPopup from "../Components/UserDetailPopup";
 import ItemDetailPopup from "../Components/ItemDetailPopup";
@@ -25,6 +26,7 @@ const MarketPage = () => {
   const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
   const [sortBy, setSortBy] = useState("item_id");
   const [order, setOrder] = useState("DESC");
+  const [isBuying, setIsBuying] = useState(false);
 
   const categories = [
     "All",
@@ -34,6 +36,36 @@ const MarketPage = () => {
     "Perangkat Rumah Tangga",
     "Lainnya",
   ];
+
+  const handleBuyItem = async (item: MarketItem) => {
+    if (!item || isBuying) return;
+
+    const confirmed = window.confirm(
+      `Kamu yakin ingin membeli "${item.itemname}"? Penjual akan mendapatkan notifikasi dan bisa menerima atau menolak permintaanmu.`
+    );
+    if (!confirmed) return;
+
+    setIsBuying(true);
+    try {
+      const transactionService = new TransactionServices();
+      const res = await transactionService.buyItem(
+        item.itemid,
+        item.itemprice,
+        (item.transaction_type as 'Uang' | 'Barter') || 'Uang'
+      );
+      if (res.success) {
+        setSelectedItem(null);
+        alert("Permintaan pembelian berhasil dikirim! Lihat status di halaman Pesananku.");
+        navigate("/orders?tab=purchases");
+      } else {
+        alert(res.message);
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan saat melakukan pembelian.");
+    } finally {
+      setIsBuying(false);
+    }
+  };
 
   const fetchMarketItems = async () => {
     if (user?.userid) {
@@ -50,12 +82,14 @@ const MarketPage = () => {
         });
         setItems(marketItems);
         setTotalPages(meta?.totalPages || 1);
+        return marketItems;
       } catch (error) {
         console.error("Failed to fetch market items:", error);
       } finally {
         setIsLoading(false);
       }
     }
+    return [];
   };
 
   const handleSellerClick = async (userId: number) => {
@@ -115,7 +149,7 @@ const MarketPage = () => {
             {/* Search */}
             <div className="relative grow group w-full md:w-auto">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="w-5 h-5 text-tx-muted group-focus-within:text-bg-vermillion transition-colors" />
+                <Search className="w-5 h-5 text-tx-primary group-focus-within:text-bg-vermillion transition-colors" />
               </div>
               <input
                 type="text"
@@ -128,7 +162,7 @@ const MarketPage = () => {
 
             {/* Pagination Limit Selector */}
             <div className="flex items-center gap-2 bg-bg-vermillion/10 p-1.5 rounded-2xl border border-bg-vermillion/20">
-              <span className="text-[10px] font-gasoek text-tx-muted uppercase px-2">
+              <span className="text-[10px] font-questrial text-tx-primary uppercase px-2">
                 Tampilkan:
               </span>
               {[8, 12, 16, 24].map((limit) => (
@@ -148,7 +182,7 @@ const MarketPage = () => {
 
             {/* Sort Selector */}
             <div className="flex items-center gap-2 bg-bg-vermillion/10 p-1.5 rounded-2xl border border-bg-vermillion/20">
-              <span className="text-[10px] font-gasoek text-tx-muted uppercase px-2">
+              <span className="text-[10px] font-questrial text-tx-primary uppercase px-2">
                 Urutkan:
               </span>
               {[
@@ -231,7 +265,7 @@ const MarketPage = () => {
                       alt={item.itemname}
                       className="w-full h-full object-cover bg-white/20"
                     />
-                    <span className="absolute top-3 left-3 px-2 py-1 bg-bg-fresh text-tx-primary border border-bg-fresh/50 text-[10px] font-bold uppercase tracking-wider rounded-lg whitespace-nowrap shadow-sm z-10">
+                    <span className="absolute top-3 left-3 px-2 py-1 bg-bg-fresh text-tx-primary border border-bg-fresh/50 text-[10px] font-bold font-questrial uppercase tracking-wider rounded-lg whitespace-nowrap shadow-sm z-10">
                       {item.category}
                     </span>
                     <span className="absolute bottom-3 left-3 px-2 py-1 bg-tx-primary text-bg-clean text-[10px] font-questrial rounded-lg whitespace-nowrap shadow-sm z-10 flex items-center gap-1.5">
@@ -347,7 +381,7 @@ const MarketPage = () => {
             </div>
             
             {/* Page Info Info */}
-            <div className="text-[10px] font-gasoek text-tx-muted uppercase tracking-wider bg-bg-fresh px-4 py-2 rounded-full border border-bg-fresh/50 shadow-inner order-2 md:order-2">
+            <div className="text-[10px] font-questrial text-tx-primary uppercase tracking-wider bg-bg-fresh px-4 py-2 rounded-full border border-bg-fresh/50 shadow-inner order-2 md:order-2">
               Halaman <span className="text-bg-vermillion">{currentPage}</span> dari <span className="text-tx-primary">{totalPages}</span>
             </div>
           </div>
@@ -361,6 +395,16 @@ const MarketPage = () => {
       <ItemDetailPopup
         selectedItem={selectedItem}
         onClose={() => setSelectedItem(null)}
+        onRefresh={async () => {
+          const updatedItems = await fetchMarketItems();
+          // After fetching, find the updated item in the newly fetched items to update selectedItem
+          if (selectedItem) {
+            const freshItem = updatedItems.find(i => i.itemid === selectedItem.itemid);
+            if (freshItem) {
+              setSelectedItem(freshItem);
+            }
+          }
+        }}
         footer={
           <div className="grid grid-cols-2 gap-3 mt-auto">
             <button
@@ -373,9 +417,13 @@ const MarketPage = () => {
               <MessageSquare size={18} />
               Chat Penjual
             </button>
-            <button className="flex items-center justify-center gap-1.5 py-3.5 bg-tx-primary hover:bg-black text-bg-clean rounded-lg text-sm font-bold font-questrial shadow-md transition-colors">
-              <ShoppingBag size={18} />
-              Beli Barang
+            <button
+              onClick={() => selectedItem && handleBuyItem(selectedItem)}
+              disabled={isBuying}
+              className="flex items-center justify-center gap-1.5 py-3.5 bg-tx-primary hover:bg-black text-bg-clean rounded-lg text-sm font-bold font-questrial shadow-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isBuying ? <Loader2 size={18} className="animate-spin" /> : <ShoppingBag size={18} />}
+              {isBuying ? "Memproses..." : "Beli Barang"}
             </button>
           </div>
         }

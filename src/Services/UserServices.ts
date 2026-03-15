@@ -10,8 +10,6 @@ const mapUser = (data: any): User => {
         username: data.user_name,
         email: data.email,
         phonenum: data.phone_num || '',
-        userrank: data.user_rank || 'Bronze',
-        userpoint: data.user_point || 0,
         profilepicturl: formatImageUrl(data.profile_pict_url),
         bannerimgurl: formatImageUrl(data.banner_img_url)
     };

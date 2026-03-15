@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MessageSquare } from "lucide-react";
+import { X, MessageSquare, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import type { User } from "../../Types/User";
+import { UserService } from "../../Services/UserServices";
 import { formatImageUrl } from "../../Utils/FormatUrl";
 import { useNavigate } from "react-router-dom";
 
@@ -11,10 +13,39 @@ interface UserDetailPopupProps {
 
 const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
   const navigate = useNavigate();
+  const [fullUser, setFullUser] = useState<User | null>(selectedUser);
+  const [isFetching, setIsFetching] = useState(false);
+
+  useEffect(() => {
+    if (selectedUser?.userid) {
+      setFullUser(selectedUser);
+      
+      const fetchUserDetails = async () => {
+        setIsFetching(true);
+        try {
+          const userService = new UserService();
+          const data = await userService.getUserById(selectedUser.userid);
+          if (data) {
+            setFullUser(data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch user details:", error);
+        } finally {
+          setIsFetching(false);
+        }
+      };
+
+      fetchUserDetails();
+    } else {
+      setFullUser(null);
+    }
+  }, [selectedUser?.userid]);
+
+  const displayUser = fullUser || selectedUser;
 
   return (
     <AnimatePresence>
-      {selectedUser && (
+      {selectedUser && displayUser && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -33,17 +64,22 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
           >
             <div
               className={`h-32 relative bg-cover bg-center shrink-0 ${
-                !selectedUser.bannerimgurl
+                !displayUser.bannerimgurl
                   ? "bg-linear-to-r from-bg-vermillion to-bg-fresh"
                   : ""
               }`}
               style={
-                selectedUser.bannerimgurl
-                  ? { backgroundImage: `url(${formatImageUrl(selectedUser.bannerimgurl)})` }
+                displayUser.bannerimgurl
+                  ? { backgroundImage: `url(${formatImageUrl(displayUser.bannerimgurl)})` }
                   : {}
               }
             >
               <div className="absolute inset-0 bg-black/20"></div>
+              {isFetching && (
+                <div className="absolute top-4 left-4 z-20">
+                  <Loader2 size={16} className="text-white animate-spin" />
+                </div>
+              )}
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 p-1.5 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors backdrop-blur-sm z-10"
@@ -54,26 +90,26 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
               <div className="absolute -bottom-12 left-6 z-10">
                 <img
                   src={
-                    selectedUser.profilepicturl ? formatImageUrl(selectedUser.profilepicturl) :
-                    `https://ui-avatars.com/api/?name=${selectedUser.fullname}&background=random`
+                    displayUser.profilepicturl ? formatImageUrl(displayUser.profilepicturl) :
+                    `https://ui-avatars.com/api/?name=${displayUser.fullname}&background=random`
                   }
-                  alt={selectedUser.fullname}
+                  alt={displayUser.fullname}
                   className="w-24 h-24 rounded-full border-4 border-bg-vermillion object-cover bg-white shadow-md"
                 />
               </div>
             </div>
             <div className="pt-14 px-6 pb-6 text-tx-primary bg-bg-vermillion flex-1 flex flex-col">
               <h3 className="text-xl font-gasoek leading-tight truncate text-tx-primary mb-1">
-                {selectedUser.fullname}
+                {displayUser.fullname}
               </h3>
               <p className="text-sm font-questrial text-white/90 mb-4 bg-black/10 inline-block px-3 py-1 rounded-lg w-max shadow-inner">
-                @{selectedUser.username}
+                @{displayUser.username}
               </p>
               <div className="space-y-3 mb-6 bg-white/90 p-4 rounded-xl shadow-inner">
                 <p className="text-sm font-questrial text-tx-primary flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-tx-muted"
+                    className="h-4 w-4 text-tx-primary"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -85,12 +121,12 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
                       d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2 2v10a2 2 0 002 2z"
                     />
                   </svg>
-                  {selectedUser.email}
+                  {displayUser.email}
                 </p>
                 <p className="text-sm font-questrial text-tx-primary flex items-center gap-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-tx-muted"
+                    className="h-4 w-4 text-tx-primary"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -102,43 +138,16 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
                       d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                     />
                   </svg>
-                  {selectedUser.phonenum}
+                  {displayUser.phonenum}
                 </p>
-              </div>
-
-              <div className="flex gap-4 mb-6">
-                <div className="bg-white/90 px-4 py-3 rounded-xl flex-1 border border-white/50 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-xs font-questrial text-tx-muted font-bold mb-1 uppercase tracking-wider">
-                    Peringkat
-                  </span>
-                  <span
-                    className={`text-sm font-bold font-questrial ${
-                      selectedUser.userrank?.toLowerCase() === "gold"
-                        ? "text-yellow-600"
-                        : selectedUser.userrank?.toLowerCase() === "silver"
-                        ? "text-slate-500"
-                        : "text-amber-600"
-                    }`}
-                  >
-                    {selectedUser.userrank || "Bronze"}
-                  </span>
-                </div>
-                <div className="bg-bg-fresh px-4 py-3 rounded-xl flex-1 border border-bg-fresh/50 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-xs font-questrial text-tx-primary font-bold mb-1 uppercase tracking-wider">
-                    Poin
-                  </span>
-                  <span className="text-sm font-bold font-questrial text-tx-primary">
-                    {selectedUser.userpoint}
-                  </span>
-                </div>
               </div>
 
               <button
                  onClick={() => {
                    onClose();
-                   navigate(`/chats?userId=${selectedUser.userid}`);
+                   navigate(`/chats?userId=${displayUser.userid}`);
                  }}
-                 className="w-full flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-2xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary transition-all group"
+                 className="w-full flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-2xl cursor-pointer font-questrial text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary transition-all group"
               >
                 <MessageSquare size={18} className="group-hover:scale-110 transition-transform" />
                 Hubungi Pengguna
@@ -147,7 +156,7 @@ const UserDetailPopup = ({ selectedUser, onClose }: UserDetailPopupProps) => {
           </motion.div>
         </motion.div>
       )}
-    </ AnimatePresence>
+    </AnimatePresence>
   );
 };
 

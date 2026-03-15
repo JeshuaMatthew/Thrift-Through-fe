@@ -5,8 +5,6 @@ export interface User{
     profilepicturl?: string;
     email: string;
     phonenum: string;
-    userrank: string;
     bannerimgurl?: string;
-    userpoint: number;
 }
 

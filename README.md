@@ -1,73 +1,44 @@
-# React + TypeScript + Vite
+# Thrift-Through Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplikasi frontend interaktif untuk platform Thrift-Through, memudahkan pengguna dalam mengelola e-waste dan berinteraksi dalam ekosistem thrifting.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Library**: [React 19](https://react.dev/)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Animation**: [Framer Motion](https://www.framer.com/motion/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Maps**: [MapLibre GL](https://maplibre.org/) & [React Map GL](https://visgl.github.io/react-map-gl/)
+- **State & Logic**: Axios, Socket.io Client, Supercluster (untuk clustering pin di peta)
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Berikut adalah penjelasan script yang tersedia di `package.json`:
 
-## Expanding the ESLint configuration
+- `npm run dev`: Menjalankan aplikasi dalam mode pengembangan (development mode) dengan Vite.
+- `npm run build`: Melakukan kompilasi TypeScript (`tsc`) dan membangun aplikasi untuk produksi ke dalam folder `dist`.
+- `npm run lint`: Menjalankan ESLint untuk mengecek kualitas dan format kode.
+- `npm run preview`: Menjalankan preview dari hasil build produksi secara lokal.
+- `npm run env`: Menyalin file `.env.example` menjadi `.env`. Berguna untuk inisialisasi awal environment variables.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Cara Setup
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1.  **Clone & Install Dependencies**:
+    ```bash
+    npm install
+    ```
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+2.  **Setup Environment Variables**:
+    Jalankan script `env`:
+    ```bash
+    npm run env
+    ```
+    Sesuaikan `VITE_API_URL` (atau variabel sejenis) di file `.env` jika backend berjalan di host/port yang berbeda.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+3.  **Menjalankan Aplikasi**:
+    ```bash
+    npm run dev
+    ```
+    Aplikasi dapat diakses melalui browser di `http://localhost:5173`.

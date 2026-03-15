@@ -123,6 +123,12 @@ export class ChatService {
         this.deleteListeners.push(callback);
     }
 
+    clearListeners(): void {
+        this.messageListeners = [];
+        this.editListeners = [];
+        this.deleteListeners = [];
+    }
+
     // ==========================================
     // 4. EMIT EVENTS
     // ==========================================

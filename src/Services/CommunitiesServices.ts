@@ -31,8 +31,6 @@ const mapUser = (data: any): User => {
         username: data.user_name,
         email: data.email,
         phonenum: data.phone_num || '',
-        userrank: data.user_rank || 'Bronze',
-        userpoint: data.user_point || 0,
         profilepicturl: formatImageUrl(data.profile_pict_url),
         bannerimgurl: formatImageUrl(data.banner_img_url)
     };
@@ -222,7 +220,7 @@ export class CommunityService {
 
     async getOrCreateDM(targetUserId: number): Promise<{ message: string; community_id: number } | null> {
         try {
-            const response = await AxiosInstance.post("/communities/direct-chat", { targetUserId });
+            const response = await AxiosInstance.post("/communities/dm/start", { targetUserId });
             return response.data;
         } catch (error) {
             console.error("Error creating DM:", error);

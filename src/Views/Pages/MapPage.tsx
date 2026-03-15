@@ -16,8 +16,7 @@ import PinDetailCard from "../Components/PinDetailCard";
 import CommunityPins from "../Components/CommunityPins";
 import ItemPins from "../Components/ItemPins";
 import UserPin from "../Components/UserPin";
-import ItemDetailPopup from "../Components/ItemDetailPopup";
-import { ThriftService, type Item } from "../../Services/ThriftsServices";
+import { ThriftService } from "../../Services/ThriftsServices";
 import { CommunityService } from "../../Services/CommunitiesServices";
 
 const formatToGeoJSON = (data: any[], type: "community" | "item") => {
@@ -175,36 +174,18 @@ const MapPage: React.FC = () => {
     type: string;
   } | null>(null);
 
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [aiInsights, setAIInsights] = useState<any>(null);
-  const [isAILoading, setIsAILoading] = useState(false);
-
-  const handleItemClick = async (id: number, lng: number, lat: number) => {
-    setSelectedItem(null);
-    setAIInsights(null);
-    setIsAILoading(true);
-
+  const handleItemClick = (id: number, name: string, lng: number, lat: number) => {
     mapRef.current?.flyTo({
       center: [lng, lat - 0.002],
       zoom: 15,
       duration: 800,
     });
 
-    const thriftService = new ThriftService();
-    const item = await thriftService.getThriftDetailById(id);
-    if (item) {
-      setSelectedItem(item);
-      // Mock AI Insights
-      setTimeout(() => {
-        setAIInsights({
-          predictedMarketPrice: item.itemprice + item.itemprice * 0.1, // Dynamic mock logic
-          carbonFootprintSavings: 2.5,
-        });
-        setIsAILoading(false);
-      }, 1000);
-    } else {
-      setIsAILoading(false);
-    }
+    setSelectedPin({
+      id,
+      name,
+      type: "item",
+    });
   };
 
   const maskGeoJSON = useMemo(() => {
@@ -285,12 +266,12 @@ const MapPage: React.FC = () => {
             <>
               {/* Header with Close Button */}
               <div className="flex justify-between items-center mb-6">
-                <span className="text-sm font-gasoek font-normal tracking-wide text-tx-primary">
+                <span className="text-sm font-questrial font-normal tracking-wide text-tx-primary">
                   Pencarian
                 </span>
                 <button
                   onClick={() => setIsControlsVisible(false)}
-                  className="p-1.5 rounded-lg hover:bg-bg-fresh text-tx-muted hover:text-bg-vermillion transition-all"
+                  className="p-1.5 rounded-lg hover:bg-bg-fresh text-tx-primary hover:text-bg-vermillion transition-all"
                 >
                   <Filter size={18} />
                 </button>
@@ -299,7 +280,7 @@ const MapPage: React.FC = () => {
               {/* Radius Control */}
               <div className="flex flex-col gap-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-gasoek font-normal tracking-wide text-tx-muted uppercase">
+                  <label className="text-[10px] font-questrial font-bold tracking-wide text-tx-primary uppercase">
                     Radius (km)
                   </label>
                   <input
@@ -313,7 +294,7 @@ const MapPage: React.FC = () => {
                       if (!isNaN(val) && val >= 0.1 && val <= 200)
                         setRadius(val);
                     }}
-                    className="w-16 px-2 py-1.5 text-xs font-gasoek font-normal tracking-wide bg-bg-fresh border border-bg-fresh/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-bg-vermillion/50 transition-all"
+                    className="w-16 px-2 py-1.5 text-xs font-questrial font-normal tracking-wide bg-bg-fresh border border-bg-fresh/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-bg-vermillion/50 transition-all"
                   />
                 </div>
                 <input
@@ -331,7 +312,7 @@ const MapPage: React.FC = () => {
 
               {/* Visibility Toggles */}
               <div className="flex flex-col gap-4">
-                <label className="text-xs font-gasoek font-normal tracking-wide text-tx-muted uppercase flex items-center gap-2">
+                <label className="text-[10px] font-questrial font-bold tracking-wide text-tx-primary uppercase flex items-center gap-2">
                   Tampilkan:
                 </label>
                 <div className="space-y-3">
@@ -360,7 +341,7 @@ const MapPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3 mt-2 pt-3 border-t border-bg-vermillion/5">
                   <button
-                    className="text-[11px] font-gasoek font-normal tracking-wide text-bg-vermillion hover:bg-bg-vermillion/10 px-2 py-1 rounded-md transition-all disabled:text-gray-400 disabled:no-underline cursor-pointer uppercase"
+                    className="text-[11px] font-questrial font-bold tracking-wide text-bg-vermillion hover:bg-bg-vermillion/10 px-2 py-1 rounded-md transition-all disabled:text-gray-400 disabled:no-underline cursor-pointer uppercase"
                     onClick={() => {
                       setShowCommunities(true);
                       setShowItems(true);
@@ -371,7 +352,7 @@ const MapPage: React.FC = () => {
                   </button>
                   <span className="text-bg-vermillion/20 font-light">|</span>
                   <button
-                    className="text-[11px] font-gasoek font-normal tracking-wide text-tx-muted hover:bg-tx-muted/10 px-2 py-1 rounded-md transition-all disabled:opacity-30 cursor-pointer uppercase"
+                    className="text-[11px] font-questrial font-bold tracking-wide text-tx-primary hover:bg-tx-muted/10 px-2 py-1 rounded-md transition-all disabled:opacity-30 cursor-pointer uppercase"
                     onClick={() => {
                       setShowCommunities(false);
                       setShowItems(false);
@@ -432,7 +413,7 @@ const MapPage: React.FC = () => {
                   anchor="center"
                 >
                   <div
-                    className="bg-bg-vermillion text-white flex items-center justify-center font-gasoek font-normal tracking-wide rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-bg-vermillion/90 transition-colors"
+                    className="bg-bg-vermillion text-white flex items-center justify-center font-questrial font-bold tracking-wide rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-bg-vermillion/90 transition-colors"
                     style={{
                       width: `${10 + (pointCount / Math.max(communities.length, 1)) * 30}px`,
                       height: `${10 + (pointCount / Math.max(communities.length, 1)) * 30}px`,
@@ -504,7 +485,7 @@ const MapPage: React.FC = () => {
                   anchor="center"
                 >
                   <div
-                    className="bg-bg-fresh text-tx-primary flex items-center justify-center font-gasoek font-normal tracking-wide rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-bg-fresh/90 transition-colors"
+                    className="bg-bg-fresh text-tx-primary flex items-center justify-center font-questrial font-bold tracking-wide rounded-full border-2 border-white shadow-lg cursor-pointer hover:bg-bg-fresh/90 transition-colors"
                     style={{
                       width: `${10 + (pointCount / Math.max(items.length, 1)) * 30}px`,
                       height: `${10 + (pointCount / Math.max(items.length, 1)) * 30}px`,
@@ -537,7 +518,7 @@ const MapPage: React.FC = () => {
                 key={`item-wrapper-${pinData.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleItemClick(pinData.id, lng, lat);
+                  handleItemClick(pinData.id, pinData.name, lng, lat);
                 }}
               >
                 <ItemPins longitude={lng} latitude={lat} name={pinData.name} transactionType={pinData.transactionType} />
@@ -555,13 +536,6 @@ const MapPage: React.FC = () => {
           />
         )}
       </AnimatePresence>
-
-      <ItemDetailPopup
-        selectedItem={selectedItem}
-        onClose={() => setSelectedItem(null)}
-        aiInsights={aiInsights}
-        isAILoading={isAILoading}
-      />
     </div>
   );
 };

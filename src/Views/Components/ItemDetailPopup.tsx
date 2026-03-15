@@ -1,30 +1,77 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MessageSquare, ShoppingBag, Sparkles, TrendingUp, Leaf } from "lucide-react";
+import { X, MessageSquare, ShoppingBag, Sparkles, TrendingUp, Leaf, RefreshCw } from "lucide-react";
 import type { Item } from "../../Services/ThriftsServices";
+import { LLMService } from "../../Services/LLMService";
 import { formatImageUrl } from "../../Utils/FormatUrl";
 import { useNavigate } from "react-router-dom";
-
-interface AIInsights {
-  predictedMarketPrice: number;
-  carbonFootprintSavings: number;
-}
 
 interface ItemDetailPopupProps {
   selectedItem: Item | null;
   onClose: () => void;
   footer?: React.ReactNode;
-  aiInsights?: AIInsights | null;
-  isAILoading?: boolean;
+  onRefresh?: () => Promise<void>;
 }
 
 const ItemDetailPopup = ({
   selectedItem,
   onClose,
   footer,
-  aiInsights,
-  isAILoading,
+  onRefresh,
 }: ItemDetailPopupProps) => {
   const navigate = useNavigate();
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
+  const [isCarbonLoading, setIsCarbonLoading] = useState(false);
+
+  const canGeneratePrice = () => {
+    if (!selectedItem?.last_price_analysis) return true;
+    try {
+      const last = new Date(selectedItem.last_price_analysis);
+      const now = new Date();
+      return (now.getTime() - last.getTime()) > (7 * 24 * 60 * 60 * 1000);
+    } catch (e) {
+      return true;
+    }
+  };
+
+  const canGenerateCarbon = () => {
+    if (!selectedItem?.last_carbon_analysis) return true;
+    try {
+      const last = new Date(selectedItem.last_carbon_analysis);
+      const now = new Date();
+      return (now.getTime() - last.getTime()) > (7 * 24 * 60 * 60 * 1000);
+    } catch (e) {
+      return true;
+    }
+  };
+
+  const handleGeneratePrice = async () => {
+    if (!selectedItem) return;
+    setIsPriceLoading(true);
+    const llmService = new LLMService();
+    try {
+      const res = await llmService.analyzePrice(selectedItem.itemid);
+      if (res.success && onRefresh) await onRefresh();
+    } catch (error) {
+      console.error("Price AI Generation failed", error);
+    } finally {
+      setIsPriceLoading(false);
+    }
+  };
+
+  const handleGenerateCarbon = async () => {
+    if (!selectedItem) return;
+    setIsCarbonLoading(true);
+    const llmService = new LLMService();
+    try {
+      const res = await llmService.analyzeCarbon(selectedItem.itemid);
+      if (res.success && onRefresh) await onRefresh();
+    } catch (error) {
+      console.error("Carbon AI Generation failed", error);
+    } finally {
+      setIsCarbonLoading(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -43,168 +90,164 @@ const ItemDetailPopup = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="bg-bg-vermillion border border-bg-vermillion/50 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]"
+            className="bg-bg-vermillion border border-bg-vermillion/50 rounded-lg w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]"
           >
+            {/* 1. Bagian Gambar (Fixed/Shrink-0) */}
             <div className="relative shrink-0">
               <img
                 src={selectedItem.itempicturl.startsWith('data:') ? selectedItem.itempicturl : formatImageUrl(selectedItem.itempicturl)}
                 alt={selectedItem.itemname}
                 className="w-full h-56 object-cover bg-white/20"
               />
-              <span className="absolute top-4 left-4 px-2.5 py-1 bg-bg-fresh text-tx-primary border border-bg-fresh/50 text-xs font-bold uppercase tracking-wider rounded-lg whitespace-nowrap shadow-sm z-10">
+              <span className="absolute top-4 left-4 px-2.5 py-1 bg-bg-fresh text-tx-primary border border-bg-fresh/50 text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm z-10">
                 {selectedItem.category}
-              </span>
-              <span className="absolute bottom-4 left-4 px-2.5 py-1 bg-tx-primary text-bg-clean text-xs font-questrial rounded-lg whitespace-nowrap shadow-sm z-10 flex items-center gap-1.5">
-                Sisa {selectedItem.itemquantity} unit
               </span>
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 p-1.5 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors backdrop-blur-sm z-10"
-                title="Tutup"
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="p-6 text-tx-primary overflow-y-auto custom-scrollbar bg-bg-vermillion flex flex-col">
-              <div className="mb-2">
-                <h3 className="text-xl font-gasoek leading-tight text-tx-primary mb-3">
+
+            {/* 2. Bagian Konten yang bisa di-scroll (Flex-1 + Overflow-y-auto) */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 bg-bg-vermillion">
+
+              {/* Judul & Info Stok */}
+              <div className="flex flex-col gap-1">
+                <h3 className="text-xl font-gasoek leading-tight text-tx-primary">
                   {selectedItem.itemname}
                 </h3>
+                <span className="text-[10px] font-questrial text-tx-primary uppercase">
+                  Sisa {selectedItem.itemquantity} unit
+                </span>
               </div>
 
-              <div className="flex items-center justify-between mb-6">
-                <div className={`${selectedItem.transaction_type === 'Barter' ? 'bg-bg-vermillion border-bg-vermillion/50' : 'bg-bg-fresh border-bg-fresh/50'} px-4 py-2 rounded-xl shadow-sm border w-full text-center`}>
-                  <p className="text-2xl font-gasoek text-tx-primary">
-                    {selectedItem.transaction_type === 'Barter' ? 'BARTER' : `Rp ${selectedItem.itemprice.toLocaleString("id-ID")}`}
+              {/* Harga/Barter */}
+              <div className={`${selectedItem.transaction_type === 'Barter' ? 'bg-bg-vermillion/20 border-bg-vermillion/50' : 'bg-bg-fresh border-bg-fresh/50'} px-4 py-3 rounded-xl shadow-sm border text-center`}>
+                <p className="text-2xl font-gasoek text-tx-primary">
+                  {selectedItem.transaction_type === 'Barter' ? 'BARTER' : `Rp ${selectedItem.itemprice.toLocaleString("id-ID")}`}
+                </p>
+              </div>
+
+              {/* Kata AI Section */}
+              <div className="bg-tx-primary p-5 rounded-3xl shadow-2xl border border-white/10 relative overflow-hidden shrink-0">
+                <div className="absolute inset-0 bg-linear-to-br from-bg-vermillion/20 to-transparent opacity-40"></div>
+                <div className="relative z-10 flex flex-col gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-bg-fresh rounded-xl">
+                      <Sparkles className="w-4 h-4 text-tx-primary" />
+                    </div>
+                    <h3 className="text-xs font-questrial text-bg-fresh uppercase">Kata AI</h3>
+                  </div>
+
+                  {/* Analisis Harga */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+                        <span className="text-[10px] font-questrial text-white uppercase">Analisis Harga</span>
+                      </div>
+                      <button
+                        onClick={handleGeneratePrice}
+                        disabled={isPriceLoading || !canGeneratePrice()}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all ${canGeneratePrice() ? "bg-bg-fresh/20 text-bg-fresh hover:bg-bg-fresh/30 cursor-pointer" : "bg-white/5 text-white/20 cursor-not-allowed"}`}
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isPriceLoading ? "animate-spin" : ""}`} />
+                        <span className="text-[9px] font-questrial uppercase">Update</span>
+                      </button>
+                    </div>
+                    <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-3">
+                       <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-questrial text-white uppercase">Estimasi Pasar</p>
+                          <span className="text-xs font-gasoek text-blue-400">
+                             {selectedItem.ai_price_analysis 
+                               ? (typeof selectedItem.ai_price_analysis === 'string' ? JSON.parse(selectedItem.ai_price_analysis).suggested_price_range : (selectedItem.ai_price_analysis as any).suggested_price_range)
+                               : "-"}
+                          </span>
+                       </div>
+                       <p className="text-xs text-white/80 font-questrial leading-loose italic">
+                         "{selectedItem.ai_price_analysis_text || "Belum ada analisis harga."}"
+                       </p>
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-white/10 w-full"></div>
+
+                  {/* Analisis Karbon */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Leaf className="w-3.5 h-3.5 text-bg-fresh" />
+                        <span className="text-[10px] font-questrial text-white uppercase">Eco Impact</span>
+                      </div>
+                      <button
+                        onClick={handleGenerateCarbon}
+                        disabled={isCarbonLoading || !canGenerateCarbon()}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all ${canGenerateCarbon() ? "bg-bg-fresh/20 text-bg-fresh hover:bg-bg-fresh/30 cursor-pointer" : "bg-white/5 text-white/20 cursor-not-allowed"}`}
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isCarbonLoading ? "animate-spin" : ""}`} />
+                        <span className="text-[9px] font-questrial uppercase">Update</span>
+                      </button>
+                    </div>
+                    <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-3">
+                       <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-questrial text-white uppercase">Karbon Dihemat</p>
+                          <span className="text-xs font-gasoek text-bg-fresh">
+                             {selectedItem.ai_carbon_analysis
+                               ? (typeof selectedItem.ai_carbon_analysis === 'string' ? JSON.parse(selectedItem.ai_carbon_analysis).carbon_saved_kg : (selectedItem.ai_carbon_analysis as any).carbon_saved_kg)
+                               : "-"}
+                          </span>
+                       </div>
+                       <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-questrial text-white uppercase">Rating Dampak</p>
+                          <span className="text-xs font-gasoek text-bg-fresh">
+                             {selectedItem.ai_carbon_analysis
+                               ? `${typeof selectedItem.ai_carbon_analysis === 'string' ? JSON.parse(selectedItem.ai_carbon_analysis).environmental_impact_rating : (selectedItem.ai_carbon_analysis as any).environmental_impact_rating}/10`
+                               : "-"}
+                          </span>
+                       </div>
+                       <p className="text-xs text-white/80 font-questrial leading-loose italic">
+                         "{selectedItem.ai_carbon_analysis_text || "Belum ada analisis karbon."}"
+                       </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deskripsi Barang */}
+              <div>
+                <p className="text-xs text-tx-primary mb-2 uppercase tracking-wider font-questrial">Deskripsi Barang</p>
+                <div className="bg-white/90 p-4 rounded-2xl shadow-inner border border-white/50">
+                  <p className="text-sm text-tx-primary font-questrial leading-relaxed">
+                    {selectedItem.itemdescription || "Tidak ada deskripsi."}
                   </p>
                 </div>
               </div>
 
-              {/* AI Insights Section */}
-              <div className="mb-8 bg-tx-primary/95 p-5 rounded-2xl shadow-xl border border-white/10 overflow-hidden relative group">
-                <div className="absolute inset-0 bg-linear-to-br from-bg-vermillion/10 to-transparent opacity-50"></div>
-
-                <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-1.5 bg-bg-fresh rounded-lg">
-                      <Sparkles className="w-3.5 h-3.5 text-tx-primary" />
-                    </div>
-                    <h3 className="text-[11px] font-gasoek font-normal tracking-wide text-bg-fresh uppercase">
-                      Kata AI
-                    </h3>
+              {/* Footer / Tombol (Tetap di dalam scroll agar tidak menutupi konten) */}
+              <div className="pt-4 pb-2">
+                {footer ? (
+                  footer
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        onClose();
+                        navigate(`/chats?userId=${selectedItem.userid}`);
+                      }}
+                      className="flex items-center justify-center gap-1.5 py-4 bg-bg-fresh text-tx-primary hover:bg-white rounded-xl text-sm font-bold font-questrial transition-colors shadow-md"
+                    >
+                      <MessageSquare size={18} />
+                      Chat
+                    </button>
+                    <button className="flex items-center justify-center gap-1.5 py-4 bg-tx-primary hover:bg-black text-bg-clean rounded-xl text-sm font-bold font-questrial shadow-md transition-colors">
+                      <ShoppingBag size={18} />
+                      {selectedItem.transaction_type === 'Barter' ? 'Barter' : 'Beli'}
+                    </button>
                   </div>
-
-                  {isAILoading ? (
-                    <div className="flex flex-col gap-3">
-                      <div className="h-12 bg-white/5 rounded-xl animate-pulse"></div>
-                      <div className="h-12 bg-white/5 rounded-xl animate-pulse"></div>
-                    </div>
-                  ) : (aiInsights || selectedItem.marketprice || selectedItem.ai_carbon_analysis) ? (
-                    <div className="flex flex-col gap-4">
-                      {/* Market Price Analysis */}
-                      {(aiInsights?.predictedMarketPrice || selectedItem.marketprice) && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1 }}
-                          className="flex flex-col gap-2 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="p-2.5 bg-blue-500/20 rounded-lg shrink-0">
-                              <TrendingUp className="w-5 h-5 text-blue-400" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-gasoek font-normal tracking-wide text-white/50 mb-1 uppercase">
-                                Estimasi Pasar
-                              </p>
-                              <p className="text-xl font-gasoek font-normal tracking-wide text-white">
-                                Rp{" "}
-                                {(aiInsights?.predictedMarketPrice || parseFloat(selectedItem.marketprice || "0")).toLocaleString(
-                                  "id-ID",
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                          {selectedItem.ai_price_analysis_text && (
-                            <p className="text-[10px] font-questrial text-white/60 italic border-t border-white/5 pt-2 mt-1">
-                              {selectedItem.ai_price_analysis_text}
-                            </p>
-                          )}
-                        </motion.div>
-                      )}
-
-                      {/* Carbon Impact Analysis */}
-                      {(aiInsights?.carbonFootprintSavings || selectedItem.ai_carbon_analysis) && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.2 }}
-                          className="flex flex-col gap-2 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="p-2.5 bg-bg-fresh/20 rounded-lg shrink-0">
-                              <Leaf className="w-5 h-5 text-bg-fresh" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-gasoek font-normal tracking-wide text-white/50 mb-1 uppercase">
-                                Eco Impact
-                              </p>
-                              <p className="text-xl font-gasoek font-normal tracking-wide text-bg-fresh">
-                                -{aiInsights?.carbonFootprintSavings || selectedItem.ai_carbon_analysis} kg CO2e
-                              </p>
-                            </div>
-                          </div>
-                          {selectedItem.ai_carbon_analysis_text && (
-                            <p className="text-[10px] font-questrial text-white/60 italic border-t border-white/5 pt-2 mt-1">
-                              {selectedItem.ai_carbon_analysis_text}
-                            </p>
-                          )}
-                        </motion.div>
-                      )}
-                      
-                      {selectedItem.lastupdatedPrice && (
-                        <p className="text-[9px] text-white/30 text-right uppercase tracking-tighter">
-                          Analisis Terakhir: {new Date(selectedItem.lastupdatedPrice).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-white/40 font-questrial py-2 text-center">
-                      AI belum memberikan analisis untuk barang ini.
-                    </p>
-                  )}
-                </div>
+                )}
               </div>
-
-              <div className="mb-8 flex-1">
-                <p className="text-xs text-white/80 mb-2 uppercase tracking-wider font-bold">
-                  Deskripsi Barang
-                </p>
-                <p className="text-sm text-tx-primary font-questrial leading-relaxed bg-white/90 p-4 rounded-lg shadow-inner">
-                  {selectedItem.itemdescription || "Tidak ada deskripsi."}
-                </p>
-              </div>
-
-              {footer ? (
-                <div className="mt-auto">{footer}</div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 mt-auto">
-                  <button 
-                    onClick={() => {
-                      onClose();
-                      navigate(`/chats?userId=${selectedItem.userid}`);
-                    }}
-                    className="flex items-center justify-center gap-1.5 py-3.5 bg-bg-fresh text-tx-primary hover:bg-white rounded-lg text-sm font-bold font-questrial transition-colors shadow-md"
-                  >
-                    <MessageSquare size={18} />
-                    Chat Penjual
-                  </button>
-                  <button className="flex items-center justify-center gap-1.5 py-3.5 bg-tx-primary hover:bg-black text-bg-clean rounded-lg text-sm font-bold font-questrial shadow-md transition-colors">
-                    <ShoppingBag size={18} />
-                    {selectedItem.transaction_type === 'Barter' ? 'Barter Barang' : 'Beli Barang'}
-                  </button>
-                </div>
-              )}
             </div>
           </motion.div>
         </motion.div>

@@ -1,5 +1,6 @@
 import type { Transaction } from "../Types/Transaction";
 import AxiosInstance from "../Utils/AxiosInstance";
+import { formatImageUrl } from "../Utils/FormatUrl";
 
 // Helper to map backend transaction to frontend Transaction interface
 const mapTransaction = (data: any): Transaction => {
@@ -12,7 +13,22 @@ const mapTransaction = (data: any): Transaction => {
         transactiondate: new Date(data.transaction_date),
         finalprice: parseFloat(data.final_price),
         transactiontype: data.transaction_type,
-        status: data.status
+        status: data.status,
+        item_pict_url: formatImageUrl(data.item_pict_url),
+        seller_name: data.seller_name,
+        seller_user_name: data.seller_user_name,
+        seller_profile_pict: formatImageUrl(data.seller_profile_pict),
+        seller_email: data.seller_email,
+        seller_phone_num: data.seller_phone_num,
+        seller_banner_img: formatImageUrl(data.seller_banner_img),
+        buyer_name: data.buyer_name,
+        buyer_user_name: data.buyer_user_name,
+        buyer_profile_pict: formatImageUrl(data.buyer_profile_pict),
+        buyer_email: data.buyer_email,
+        buyer_phone_num: data.buyer_phone_num,
+        buyer_banner_img: formatImageUrl(data.buyer_banner_img),
+        item_name: data.item_name,
+        category: data.category
     };
 };
 

@@ -20,10 +20,11 @@ export interface Item {
     seller_name?: string;
     seller_profile_pict?: string;
     // New analysis fields
-    ai_price_analysis?: number;
+    ai_price_analysis?: any;
     ai_price_analysis_text?: string;
-    ai_carbon_analysis?: number;
+    ai_carbon_analysis?: any;
     ai_carbon_analysis_text?: string;
+    last_price_analysis?: string;
     last_carbon_analysis?: string;
 }
 
@@ -52,6 +53,7 @@ const mapItem = (data: any): Item => {
         ai_price_analysis_text: data.ai_price_analysis_text,
         ai_carbon_analysis: data.ai_carbon_analysis,
         ai_carbon_analysis_text: data.ai_carbon_analysis_text,
+        last_price_analysis: data.last_price_analysis,
         last_carbon_analysis: data.last_carbon_analysis
     };
 };

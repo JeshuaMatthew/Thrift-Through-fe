@@ -28,11 +28,10 @@ const RootNavbar = () => {
       <motion.nav
         layout
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`z-40 ${
-          isMapPage
-            ? `absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-max max-w-7xl bg-bg-clean/95 backdrop-blur-md border border-bg-vermillion/20 rounded-full shadow-xl px-2`
-            : `fixed top-0 left-0 right-0 bg-bg-clean/95 backdrop-blur-xl border-b border-bg-vermillion/30 shadow-sm`
-        }`}
+        className={`z-40 ${isMapPage
+          ? `absolute top-4 left-1/2 -translate-x-1/2 w-[90%] md:w-max max-w-7xl bg-bg-clean/95 backdrop-blur-md border border-bg-vermillion/20 rounded-full shadow-xl px-2`
+          : `fixed top-0 left-0 right-0 bg-bg-clean/95 backdrop-blur-xl border-b border-bg-vermillion/30 shadow-sm`
+          }`}
       >
         <motion.div
           layout
@@ -63,11 +62,10 @@ const RootNavbar = () => {
                     <Link
                       key={link.path}
                       to={link.path}
-                      className={`px-3 py-1.5 rounded-xl text-sm font-gasoek tracking-wide transition-all duration-300 ${
-                        isActive
-                          ? "bg-bg-fresh text-tx-primary shadow-sm border border-bg-fresh"
-                          : "text-tx-secondary hover:text-tx-primary hover:bg-tx-muted/10"
-                      }`}
+                      className={`px-3 py-1.5 rounded-xl text-sm font-gasoek tracking-wide transition-all duration-300 ${isActive
+                        ? "bg-bg-fresh text-tx-primary shadow-sm border border-bg-fresh"
+                        : "text-tx-secondary hover:text-tx-primary hover:bg-tx-muted/10"
+                        }`}
                     >
                       {link.name}
                     </Link>
@@ -145,9 +143,6 @@ const RootNavbar = () => {
                         <p className="text-xs font-gasoek tracking-wide w-30 truncate text-tx-primary leading-tight group-hover:text-bg-vermillion transition-colors">
                           {user?.username || "User"}
                         </p>
-                        <p className="text-[10px] text-bg-vermillion font-questrial">
-                          {user?.userrank || "-"}
-                        </p>
                       </div>
                       <div className="rounded-full bg-bg-clean border-2 border-bg-vermillion/50 overflow-hidden shrink-0 group-hover:border-bg-vermillion transition-colors relative cursor-pointer w-8 h-8">
                         <img
@@ -164,10 +159,10 @@ const RootNavbar = () => {
 
                     <button
                       onClick={logout}
-                      className="ml-1 p-1 rounded-lg text-tx-primary hover:text-bg-fresh hover:bg-red-500/50 cursor-pointer transition-all group"
+                      className="ml-1 p-1 rounded-lg text-tx-primary hover:text-bg-fresh hover:bg-red-500/50 font-gasoek cursor-pointer transition-all group"
                       title="Logout"
                     >
-                      <LogOut />
+                      Keluar
                     </button>
                   </motion.div>
                 )}
@@ -179,11 +174,10 @@ const RootNavbar = () => {
 
       {/* Mobile Grid Menu Overlay */}
       <div
-        className={`${isMapPage ? "" : "md:hidden"} fixed inset-0 z-100 bg-tx-primary transition-all duration-300 transform ${
-          isMobileMenuOpen
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 -translate-y-full pointer-events-none"
-        }`}
+        className={`${isMapPage ? "" : "md:hidden"} fixed inset-0 z-100 bg-tx-primary transition-all duration-300 transform ${isMobileMenuOpen
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 -translate-y-full pointer-events-none"
+          }`}
         style={{
           height: "100vh",
           top: "0",
@@ -281,9 +275,8 @@ const RootNavbar = () => {
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex rounded-lg flex-col items-center justify-center p-6 transition-all ${
-                    isActive ? "bg-bg-clean" : "bg-bg-fresh"
-                  }`}
+                  className={`flex rounded-lg flex-col items-center justify-center p-6 transition-all ${isActive ? "bg-bg-clean" : "bg-bg-fresh"
+                    }`}
                 >
                   <span
                     className={`text-lg font-questrial tracking-wide ${isActive ? "text-bg-vermillion font-bold" : "text-tx-primary"}`}

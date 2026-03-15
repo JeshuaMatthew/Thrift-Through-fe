@@ -64,15 +64,15 @@ const ChatPage = () => {
   useEffect(() => {
     const fetchSidebarData = async () => {
       if (!chatServiceRef.current) chatServiceRef.current = new ChatService();
-      
+
       const [allChats, allUsers] = await Promise.all([
         chatServiceRef.current.getMyChatList(),
         new UserService().getAllUsers()
       ]);
-      
+
       setUsers(allUsers || []);
 
-      const formattedChats: ChatListItem[] = (allChats || []).map((c: any) => {
+      const rawFormattedChats: ChatListItem[] = (allChats || []).map((c: any) => {
         const itemType: "user" | "community" = c.community_type === 'directchat' ? "user" : "community";
         if (itemType === 'user') {
           return {
@@ -95,6 +95,15 @@ const ChatPage = () => {
         }
       });
 
+      // Deduplicate formattedChats
+      const uniqueFormattedChatsMap = new Map();
+      rawFormattedChats.forEach(chat => {
+        if (!uniqueFormattedChatsMap.has(chat.id)) {
+          uniqueFormattedChatsMap.set(chat.id, chat);
+        }
+      });
+      const formattedChats = Array.from(uniqueFormattedChatsMap.values());
+
       setChatList(formattedChats);
 
       // Handle targeted user or community from URL
@@ -113,11 +122,11 @@ const ChatPage = () => {
           const detail = await commService.getCommunityDetailById(targetCommId);
           if (detail) {
             const newChat: ChatListItem = {
-                id: `comm_${detail.communityid}`,
-                name: detail.communityname,
-                type: "community",
-                picture: detail.profilepicturl || `https://ui-avatars.com/api/?name=${encodeURIComponent(detail.communityname)}&background=f6ed6c&color=183020`,
-                communityId: Number(detail.communityid)
+              id: `comm_${detail.communityid}`,
+              name: detail.communityname,
+              type: "community",
+              picture: detail.profilepicturl || `https://ui-avatars.com/api/?name=${encodeURIComponent(detail.communityname)}&background=f6ed6c&color=183020`,
+              communityId: Number(detail.communityid)
             };
             setChatList(prev => {
               const exists = prev.some(c => Number(c.communityId) === Number(newChat.communityId));
@@ -147,8 +156,18 @@ const ChatPage = () => {
                 communityId: Number(c.community_id),
                 lastMessage: c.last_message
               }));
-              setChatList(refreshedChats);
-              const newActive = refreshedChats.find((c: any) => Number(c.communityId) === dmCommId);
+
+              // Deduplicate chats based on ID
+              const uniqueChatsMap = new Map();
+              refreshedChats.forEach(chat => {
+                if (!uniqueChatsMap.has(chat.id)) {
+                  uniqueChatsMap.set(chat.id, chat);
+                }
+              });
+              const uniqueChats = Array.from(uniqueChatsMap.values());
+
+              setChatList(uniqueChats);
+              const newActive = uniqueChats.find((c: any) => Number(c.communityId) === dmCommId);
               if (newActive) setActiveChat(newActive);
             }
           }
@@ -159,12 +178,12 @@ const ChatPage = () => {
     fetchSidebarData();
 
     if (!chatServiceRef.current) {
-        chatServiceRef.current = new ChatService();
+      chatServiceRef.current = new ChatService();
     }
     chatServiceRef.current.connect(user?.userid || 0);
 
     return () => {
-        chatServiceRef.current?.disconnect();
+      chatServiceRef.current?.disconnect();
     };
   }, [user, location.search]);
 
@@ -175,6 +194,8 @@ const ChatPage = () => {
     setEditInputText("");
 
     if (!activeChat || !chatServiceRef.current) return;
+
+    chatServiceRef.current.clearListeners();
 
     const handleNewMessage = (newChat: Chat) => {
       if (Number(newChat.communityId) === (activeChat.communityId || 0)) {
@@ -204,6 +225,12 @@ const ChatPage = () => {
     };
 
     loadHistory();
+
+    return () => {
+      if (chatServiceRef.current) {
+        chatServiceRef.current.clearListeners();
+      }
+    };
   }, [activeChat]);
 
   useEffect(() => {
@@ -232,33 +259,41 @@ const ChatPage = () => {
 
   const handleEditMessage = (chatId: number, newText: string) => {
     if (!activeChat?.communityId || !chatServiceRef.current) return;
+
+    // Optimistic update
+    setMessages((prev) => prev.map(m => Number(m.chatId) === chatId ? { ...m, chatText: newText } : m));
+
     chatServiceRef.current.editMessage(chatId, activeChat.communityId, newText);
     setEditingChatId(null);
   };
 
   const handleDeleteMessages = (chatIds: number[]) => {
     if (!activeChat?.communityId || !chatServiceRef.current) return;
+
+    // Optimistic update
+    setMessages((prev) => prev.map(m => chatIds.includes(Number(m.chatId)) ? { ...m, chatText: "Pesan ini telah dihapus" } : m));
+
     chatServiceRef.current.deleteMessages(chatIds, activeChat.communityId);
     setIsSelectMode(false);
     setSelectedChats(new Set());
   };
 
   return (
-    <div className="pt-20 px-4 md:px-8 max-w-7xl mx-auto h-dvh flex flex-col pb-6 questrial-regular">
-      <div className="flex-1 bg-white rounded-2xl shadow-xl border border-bg-vermillion/30 overflow-hidden flex min-h-0">
-        
+    <div className="pt-5 px-4 md:px-8 max-w-7xl flex flex-col mx-auto h-dvh pb-6 font-questrial">
+      <div className="flex-1 bg-bg-clean rounded-2xl shadow-sm border border-bg-vermillion/50 overflow-hidden flex max-h-[calc(100vh-6rem)]">
+
         {/* ================= LEFT SIDEBAR (CHAT LIST) ================= */}
-        <div className={`w-full md:w-80 lg:w-96 flex flex-col border-r border-bg-vermillion/20 bg-bg-clean transition-all ${activeChat ? "hidden md:flex" : "flex"}`}>
-          <div className="p-4 border-b border-bg-vermillion/20 bg-white">
-            <h1 className="text-xl gasoek-one-regular text-tx-primary tracking-wide">Pesan</h1>
+        <div className={`w-full md:w-80 lg:w-96 flex flex-col border-r border-bg-vermillion/50 bg-bg-clean transition-all ${activeChat ? "hidden md:flex" : "flex"}`}>
+          <div className="p-4 border-b border-bg-vermillion/50 bg-bg-vermillion/10">
+            <h1 className="text-xl font-gasoek text-tx-primary tracking-wide">Pesan</h1>
             <div className="mt-3 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tx-muted" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tx-primary" size={16} />
               <input
                 type="text"
                 placeholder="Cari obrolan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-bg-clean border border-transparent focus:bg-white focus:border-tx-secondary focus:ring-2 focus:ring-tx-secondary/20 rounded-xl text-sm font-bold text-tx-primary transition-all outline-none"
+                className="w-full pl-9 pr-4 py-3 bg-bg-fresh border border-bg-fresh/50 focus:bg-white focus:border-tx-primary/50 focus:ring-2 focus:ring-tx-primary/30 rounded-2xl text-sm font-questrial font-bold text-tx-primary transition-all shadow-sm outline-none"
               />
             </div>
           </div>
@@ -274,11 +309,10 @@ const ChatPage = () => {
                   key={item.id}
                   id={`chat-item-${item.id}`}
                   onClick={() => setActiveChat(item)}
-                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 select-none ${
-                    activeChat?.id === item.id
-                      ? "bg-bg-fresh border border-bg-fresh shadow-sm"
-                      : "hover:bg-bg-fresh/50 border border-transparent"
-                  }`}
+                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 select-none ${activeChat?.id === item.id
+                    ? "bg-bg-vermillion border border-bg-vermillion/50 shadow-sm"
+                    : "hover:bg-bg-vermillion/10 border border-transparent"
+                    }`}
                 >
                   <div className="relative shrink-0">
                     <img
@@ -291,7 +325,7 @@ const ChatPage = () => {
                           const matchUser = users.find(u => u.userid === targetUserId);
                           if (matchUser) setSelectedUserProfile(matchUser);
                         } else if (item.communityId) {
-                           new CommunityService().getCommunityDetailById(item.communityId).then(d => setSelectedCommunityProfile(d));
+                          new CommunityService().getCommunityDetailById(item.communityId).then(d => setSelectedCommunityProfile(d));
                         }
                       }}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm hover:scale-105 transition-transform"
@@ -303,12 +337,12 @@ const ChatPage = () => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <h3 className="font-bold text-tx-primary truncate text-sm flex-1">
+                    <div className="flex justify-between items-baseline mb-1">
+                      <h3 className="font-questrial font-bold text-tx-primary tracking-wide truncate text-sm flex-1">
                         {item.name}
                       </h3>
                     </div>
-                    <p className="text-xs text-tx-secondary font-medium truncate">
+                    <p className="text-xs text-tx-secondary font-questrial truncate">
                       {item.lastMessage || (item.type === "community" ? "Room Komunitas" : "Personal Chat")}
                     </p>
                   </div>
@@ -320,19 +354,19 @@ const ChatPage = () => {
         {/* ================= RIGHT PANEL (ACTIVE CHAT) ================= */}
         <div className={`flex-1 flex flex-col bg-bg-clean relative ${!activeChat ? "hidden md:flex" : "flex"}`}>
           {!activeChat ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-tx-muted p-8 text-center bg-white">
-              <div className="w-24 h-24 mb-6 rounded-full bg-bg-clean flex items-center justify-center border-4 border-bg-fresh shadow-inner text-tx-secondary">
+            <div className="flex-1 flex flex-col items-center justify-center text-tx-primary p-8 text-center bg-bg-clean">
+              <div className="w-24 h-24 mb-6 rounded-2xl bg-bg-vermillion flex items-center justify-center border border-bg-vermillion/50 shadow-sm text-tx-primary">
                 <MessageSquare size={40} />
               </div>
-              <h2 className="text-2xl gasoek-one-regular text-tx-primary mb-2">Pilih Obrolan</h2>
-              <p className="max-w-xs text-sm font-bold">
-                Pilih komunitas atau pengguna di panel kiri untuk mulai negosiasi e-waste.
+              <h2 className="text-2xl font-gasoek text-tx-primary mb-2">Pilih Obrolan</h2>
+              <p className="max-w-xs text-sm font-questrial px-4 bg-white/40 p-3 rounded-xl shadow-inner border border-bg-vermillion/20">
+                Pilih komunitas atau pengguna di panel kiri untuk mulai negosiasi.
               </p>
             </div>
           ) : (
             <>
               {/* Header */}
-              <div className="border-b border-bg-vermillion/20 bg-white shrink-0 z-10 shadow-sm relative">
+              <div className="border-b border-bg-vermillion/50 bg-bg-vermillion/5 shrink-0 z-10 shadow-[0_2px_4px_-2px_rgba(0,0,0,0.05)] relative">
                 <div className="h-[72px] flex items-center px-4 md:px-6">
                   <button
                     className="mr-3 p-2 -ml-2 rounded-full hover:bg-bg-clean md:hidden text-tx-secondary transition-colors"
@@ -348,8 +382,8 @@ const ChatPage = () => {
                         const matchUser = users.find((u) => u.userid === targetUserId);
                         if (matchUser) setSelectedUserProfile(matchUser);
                         else {
-                           const fetched = await new UserService().getUserById(targetUserId);
-                           if (fetched) setSelectedUserProfile(fetched);
+                          const fetched = await new UserService().getUserById(targetUserId);
+                          if (fetched) setSelectedUserProfile(fetched);
                         }
                       } else if (activeChat.type === "community" && activeChat.communityId) {
                         const commService = new CommunityService();
@@ -367,7 +401,7 @@ const ChatPage = () => {
                       <h2 className="font-bold text-tx-primary leading-tight">
                         {activeChat.name}
                       </h2>
-                      <p className="text-xs text-tx-secondary font-bold">
+                      <p className="text-xs text-tx-secondary font-questrial font-bold">
                         {activeChat.type === "community" ? "Community Chat" : "Pengepul Terverifikasi"}
                       </p>
                     </div>
@@ -410,13 +444,12 @@ const ChatPage = () => {
                 </div>
               </div>
 
-              {/* Messages Area */}
-              <div 
-                ref={chatContainerRef} 
-                className="flex-1 overflow-y-auto p-4 md:p-6 bg-bg-clean custom-scrollbar flex flex-col gap-4"
+              <div
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto p-4 md:p-6 bg-bg-clean custom-scrollbar flex flex-col gap-4 relative"
               >
                 {messages.length === 0 ? (
-                  <div className="m-auto text-tx-secondary text-sm font-bold bg-white px-4 py-2 rounded-full shadow-sm border border-bg-vermillion/30">
+                  <div className="m-auto text-tx-primary text-sm font-questrial bg-bg-vermillion/10 px-6 py-3 rounded-full shadow-inner border border-bg-vermillion/20">
                     Belum ada pesan. Mulai sapa sekarang!
                   </div>
                 ) : (
@@ -435,7 +468,7 @@ const ChatPage = () => {
                               onClick={() => msgUser ? setSelectedUserProfile(msgUser) : null}
                             >
                               <img src={msgUserAvatar} alt={msgUserName} className="w-5 h-5 rounded-full object-cover border border-bg-vermillion/30 shadow-xs" />
-                              <span className="text-[11px] font-bold text-tx-secondary">{msgUserName}</span>
+                              <span className="text-[11px] font-bold font-questrial text-tx-secondary">{msgUserName}</span>
                             </div>
                           )}
                           <div className={`flex items-center gap-2 group ${isMe ? "flex-row-reverse" : "flex-row"}`}>
@@ -454,19 +487,18 @@ const ChatPage = () => {
                             )}
 
                             <div
-                              className={`px-4 py-2.5 rounded-2xl relative shadow-sm ${
-                                msg.chatText === "Pesan ini telah dihapus"
-                                  ? "bg-white border border-bg-vermillion/30 text-tx-muted italic rounded-bl-sm"
-                                  : isMe
-                                    ? "bg-bg-vermillion text-tx-primary rounded-br-sm shadow-md"
-                                    : "bg-white border border-bg-vermillion/40 text-tx-primary rounded-bl-sm shadow-sm"
-                              }`}
+                              className={`px-4 py-2.5 rounded-2xl relative shadow-sm border ${msg.chatText === "Pesan ini telah dihapus"
+                                ? "bg-bg-clean border-bg-vermillion/30 text-tx-muted italic rounded-bl-sm"
+                                : isMe
+                                  ? "bg-bg-vermillion border-bg-vermillion/50 text-tx-primary rounded-br-sm shadow-md"
+                                  : "bg-bg-fresh border-bg-fresh/50 text-tx-primary rounded-bl-sm shadow-sm"
+                                }`}
                             >
                               {editingChatId === msg.chatId ? (
                                 <div className="flex items-center gap-2 min-w-[200px]">
                                   <input
                                     autoFocus
-                                    className="flex-1 bg-white/20 text-tx-primary placeholder-tx-primary/60 border border-tx-primary/40 focus:border-tx-primary focus:outline-none rounded px-2 py-1 text-[14px] font-bold"
+                                    className="flex-1 bg-white/40 text-tx-primary placeholder-tx-primary/60 border border-white/50 focus:border-white focus:outline-none rounded-lg px-3 py-1.5 text-[14px] font-questrial shadow-inner"
                                     value={editInputText}
                                     onChange={(e) => setEditInputText(e.target.value)}
                                     onKeyDown={(e) => {
@@ -476,16 +508,16 @@ const ChatPage = () => {
                                     }}
                                   />
                                   <div className="flex gap-1 shrink-0">
-                                    <button onClick={() => handleEditMessage(msg.chatId, editInputText)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
-                                      <Check size={14} className="text-bg-fresh" />
+                                    <button onClick={() => handleEditMessage(msg.chatId, editInputText)} className="p-1.5 hover:bg-white/40 rounded-full transition-colors">
+                                      <Check size={16} className="text-bg-fresh" />
                                     </button>
-                                    <button onClick={() => setEditingChatId(null)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
-                                      <X size={14} className="text-tx-accent" />
+                                    <button onClick={() => setEditingChatId(null)} className="p-1.5 hover:bg-white/40 rounded-full transition-colors">
+                                      <X size={16} className="text-tx-accent" />
                                     </button>
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-[14px] md:text-[15px] leading-relaxed wrap-break-word whitespace-pre-wrap font-bold">
+                                <p className="text-[14px] md:text-[15px] leading-relaxed wrap-break-word whitespace-pre-wrap font-questrial font-bold tracking-wide">
                                   {msg.chatText}
                                 </p>
                               )}
@@ -508,7 +540,7 @@ const ChatPage = () => {
                               </div>
                             )}
                           </div>
-                          <span className="text-[9px] md:text-[10px] text-tx-muted font-bold px-1 opacity-70">
+                          <span className="text-[9px] md:text-[10px] text-tx-primary font-bold font-questrial px-1 opacity-60">
                             {new Date(msg.dateSent).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
@@ -519,25 +551,25 @@ const ChatPage = () => {
               </div>
 
               {/* Input Area & Quick Replies */}
-              <div className="bg-white border-t border-bg-vermillion/20 shrink-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+              <div className="bg-bg-clean border-t border-bg-vermillion/50 shrink-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 {/* Quick Replies */}
                 <div className="flex gap-2 overflow-x-auto custom-scrollbar px-4 pt-3 pb-1">
-                    {quickReplies.map((reply, idx) => (
-                        <button 
-                            key={idx}
-                            onClick={() => handleSendMessage(reply)} 
-                            className="whitespace-nowrap px-3 py-1.5 bg-bg-clean hover:bg-bg-vermillion text-tx-secondary text-xs font-bold rounded-full border border-bg-vermillion/40 transition-colors shadow-sm"
-                        >
-                            {reply}
-                        </button>
-                    ))}
+                  {quickReplies.map((reply, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(reply)}
+                      className="whitespace-nowrap px-3 py-1.5 bg-bg-fresh hover:bg-bg-vermillion text-tx-primary text-[10px] uppercase tracking-wider font-questrial font-bold rounded-xl border border-bg-vermillion/40 transition-colors shadow-sm"
+                    >
+                      {reply}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Form Input */}
                 <form onSubmit={handleSendMessage} className="flex gap-2 items-end max-w-4xl mx-auto p-3 md:p-4">
                   <div className="flex gap-1 pb-1 shrink-0">
                   </div>
-                  
+
                   <textarea
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
@@ -548,7 +580,7 @@ const ChatPage = () => {
                       }
                     }}
                     placeholder="Ketik pesan..."
-                    className="flex-1 bg-bg-clean/50 border border-bg-vermillion/50 focus:bg-white focus:border-tx-secondary focus:ring-2 focus:ring-tx-secondary/20 rounded-2xl text-[14px] md:text-[15px] font-bold text-tx-primary transition-all outline-none py-3 px-4 resize-none max-h-32 min-h-[48px] custom-scrollbar"
+                    className="flex-1 bg-white border border-bg-vermillion/50 focus:bg-white focus:border-tx-primary/50 focus:ring-2 focus:ring-tx-primary/30 rounded-2xl text-[14px] md:text-[15px] font-questrial font-bold text-tx-primary transition-all outline-none py-3 px-4 resize-none max-h-32 min-h-[48px] custom-scrollbar shadow-sm"
                     rows={1}
                   />
                   <button
@@ -592,17 +624,7 @@ const ChatPage = () => {
                 {selectedUserProfile.fullname}
               </h3>
               <p className="text-sm text-tx-secondary font-bold mb-1">@{selectedUserProfile.username}</p>
-              
-              <div className="flex gap-4 mt-6">
-                <div className="bg-bg-clean px-4 py-3 rounded-2xl flex-1 border border-bg-vermillion/30 flex flex-col items-center">
-                  <span className="text-xs text-tx-muted font-bold mb-1">Rank</span>
-                  <span className="text-sm font-bold text-tx-secondary">{selectedUserProfile.userrank}</span>
-                </div>
-                <div className="bg-bg-fresh/20 px-4 py-3 rounded-2xl flex-1 border border-bg-vermillion/30 flex flex-col items-center">
-                  <span className="text-xs text-tx-secondary font-bold mb-1">Points</span>
-                  <span className="text-sm font-bold text-tx-primary">{selectedUserProfile.userpoint}</span>
-                </div>
-              </div>
+
             </div>
           </div>
         </div>
@@ -637,7 +659,7 @@ const ChatPage = () => {
 
               <div className="flex gap-4">
                 <div className="bg-bg-clean px-4 py-3 rounded-2xl flex-1 border border-bg-vermillion/30 flex flex-col items-center">
-                  <span className="text-xs text-tx-muted font-bold mb-1">Anggota</span>
+                  <span className="text-xs text-tx-primary font-questrial font-bold mb-1">Anggota</span>
                   <span className="text-sm font-bold text-tx-primary flex items-center gap-1">
                     <Hash size={14} className="text-tx-secondary" />
                     {selectedCommunityProfile.members?.length || 0}

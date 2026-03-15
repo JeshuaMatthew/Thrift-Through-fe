@@ -12,8 +12,6 @@ const mapUser = (data: any): User => {
         username: data.user_name,
         email: data.email,
         phonenum: data.phone_num || '',
-        userrank: data.user_rank || '',
-        userpoint: data.user_point || 0,
         profilepicturl: formatImageUrl(data.profile_pict_url),
         bannerimgurl: formatImageUrl(data.banner_img_url)
     };
@@ -108,10 +106,9 @@ export class AuthService {
         }
     }
 
-    // 4. UPDATE PROFILE
-    async updateProfile(updateData: Partial<Omit<User, 'userid' | 'userrank' | 'userpoint'>>): Promise<{ success: boolean; message: string; data?: User }> {
+    // 4. UPDATE PROFILE (Text Only)
+    async updateProfile(updateData: { fullname?: string; username?: string; email?: string; phonenum?: string }): Promise<{ success: boolean; message: string; data?: User }> {
         try {
-            // Mapping frontend keys to backend keys for update
             const backendData: any = {};
             if (updateData.fullname) backendData.full_name = updateData.fullname;
             if (updateData.username) backendData.user_name = updateData.username;
@@ -130,8 +127,38 @@ export class AuthService {
         } catch (error: any) {
             return { 
                 success: false, 
-                message: error.response?.data?.error || "Unauthorized. Silakan login terlebih dahulu." 
+                message: error.response?.data?.error || "Gagal memperbarui profil." 
             };
+        }
+    }
+
+    // 4.b UPLOAD PROFILE PICTURE
+    async uploadProfilePic(file: File): Promise<{ success: boolean; message: string; data?: User }> {
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            const response = await AxiosInstance.post("/users/profile-pic", formData);
+            if (response.data.user) {
+                return { success: true, message: response.data.message, data: mapUser(response.data.user) };
+            }
+            return { success: false, message: "Gagal upload foto profil." };
+        } catch (error: any) {
+            return { success: false, message: error.response?.data?.error || "Gagal upload foto profil." };
+        }
+    }
+
+    // 4.c UPLOAD BANNER
+    async uploadUserBanner(file: File): Promise<{ success: boolean; message: string; data?: User }> {
+        try {
+            const formData = new FormData();
+            formData.append('banner', file);
+            const response = await AxiosInstance.post("/users/banner", formData);
+            if (response.data.user) {
+                return { success: true, message: response.data.message, data: mapUser(response.data.user) };
+            }
+            return { success: false, message: "Gagal upload banner." };
+        } catch (error: any) {
+            return { success: false, message: error.response?.data?.error || "Gagal upload banner." };
         }
     }
 
