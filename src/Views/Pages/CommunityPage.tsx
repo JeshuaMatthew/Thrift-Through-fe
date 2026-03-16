@@ -42,18 +42,32 @@ const CommunityPage = () => {
   const [members, setMembers] = useState<any[]>([]);
   const [isManagingMembers, setIsManagingMembers] = useState(false);
   const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null);
+  const [activeTab, setActiveTab] = useState<"admin" | "active" | "pending">("admin");
 
   const fetchCommunities = async () => {
     setIsLoading(true);
     try {
       const commService = new CommunityService();
-      const { communities: allComms, meta } = await commService.getMyCommunities({
+      let response;
+      
+      const commonParams = {
         page: currentPage,
         limit: itemsPerPage,
         search: searchQuery,
         sortBy,
         order
-      });
+      };
+
+      if (activeTab === "admin") {
+        response = await commService.getMyCommunities(commonParams);
+      } else {
+        response = await commService.getMyMemberships({
+          ...commonParams,
+          status: activeTab === "active" ? "Active" : "Pending"
+        });
+      }
+      
+      const { communities: allComms, meta } = response;
       setCommunities(allComms);
       setTotalPages(meta?.totalPages || 1);
     } catch (error) {
@@ -65,7 +79,7 @@ const CommunityPage = () => {
 
   useEffect(() => {
     fetchCommunities();
-  }, [user, currentPage, itemsPerPage, searchQuery, sortBy, order]);
+  }, [user, currentPage, itemsPerPage, searchQuery, sortBy, order, activeTab]);
 
   const fetchMembers = async (commId: number) => {
     try {
@@ -149,10 +163,10 @@ const CommunityPage = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
             <h1 className="text-4xl font-gasoek text-tx-primary mb-2">
-              Komunitasku
+              Komunitas
             </h1>
             <p className="text-tx-secondary font-questrial">
-              Disini kamu bisa melihat daftar komunitas yang kamu telah bentuk.
+              Akses dan kelola komunitas thrift andalanmu.
             </p>
           </div>
           <button
@@ -162,6 +176,35 @@ const CommunityPage = () => {
             <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
             Buat Komunitas Baru
           </button>
+        </div>
+
+        {/* Tab Selector */}
+        <div className="flex gap-4 mb-8 bg-bg-vermillion/5 p-2 rounded-2xl border border-bg-vermillion/10 w-fit">
+          {[
+            { id: "admin", label: "Komunitasku", count: activeTab === "admin" ? communities.length : null },
+            { id: "active", label: "Sudah Gabung", count: activeTab === "active" ? communities.length : null },
+            { id: "pending", label: "Menunggu", count: activeTab === "pending" ? communities.length : null },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                setCurrentPage(1);
+              }}
+              className={`px-6 py-3 rounded-xl font-gasoek text-sm transition-all flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? "bg-bg-vermillion text-white shadow-lg scale-105"
+                  : "text-tx-secondary hover:bg-bg-vermillion/10"
+              }`}
+            >
+              {tab.label}
+              {tab.count !== null && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? "bg-white text-bg-vermillion" : "bg-bg-vermillion text-white"}`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Filters, Search, and Pagination Limit */}
@@ -250,8 +293,11 @@ const CommunityPage = () => {
                 Komunitas Tidak Ditemukan
               </h3>
               <p className="text-tx-primary font-questrial max-w-md px-6 bg-white/20 p-4 rounded-lg shadow-inner">
-                Maaf, kami tidak menemukan komunitas yang sesuai. Coba gunakan
-                kata kunci lain.
+                {activeTab === "pending" 
+                  ? "Kamu tidak memiliki permintaan bergabung yang sedang menunggu."
+                  : activeTab === "active"
+                  ? "Kamu belum bergabung ke komunitas apapun."
+                  : "Kamu belum membuat komunitas apapun."}
               </p>
             </div>
           ) : (
@@ -262,10 +308,15 @@ const CommunityPage = () => {
                 return (
                   <div
                     key={comm.communityid}
-                    className="flex flex-col bg-bg-vermillion border border-bg-vermillion/50 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-bg-vermillion transition-all duration-200"
+                    className="flex flex-col bg-bg-vermillion border border-bg-vermillion/50 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-bg-vermillion transition-all duration-200 group relative"
                   >
+                    {activeTab === "pending" && (
+                      <div className="absolute top-3 right-3 z-20 bg-tx-accent text-white text-[10px] font-gasoek px-3 py-1.5 rounded-full shadow-lg border border-white/20 uppercase tracking-wider animate-pulse">
+                        Menunggu Persetujuan
+                      </div>
+                    )}
                     <div
-                      className="relative aspect-video shrink-0 bg-bg-clean overflow-hidden cursor-pointer group"
+                      className="relative aspect-video shrink-0 bg-bg-clean overflow-hidden cursor-pointer group-hover:brightness-95"
                       onClick={() => setSelectedCommunityForPopup(comm)}
                     >
                       <img
@@ -283,15 +334,40 @@ const CommunityPage = () => {
                       className="p-5 flex flex-col flex-1 bg-bg-vermillion cursor-pointer"
                       onClick={() => setSelectedCommunityForPopup(comm)}
                     >
-                      <h3 className="text-lg font-gasoek text-tx-primary mb-3 line-clamp-1 leading-tight uppercase tracking-wide">
+                      <h3 className="text-lg font-gasoek text-tx-primary mb-3 line-clamp-1 leading-tight uppercase tracking-wide group-hover:text-bg-clean transition-colors">
                         {comm.communityname}
                       </h3>
-                      <div className="bg-bg-fresh/80 border border-bg-fresh p-3 rounded-xl shadow-inner flex-1">
+                      <div className="bg-bg-fresh/80 border border-bg-fresh p-3 rounded-xl shadow-inner flex-1 group-hover:bg-bg-fresh transition-colors">
                         <p className="text-xs text-tx-primary font-questrial line-clamp-4 opacity-90 leading-relaxed italic">
                           {comm.description || "Tidak ada deskripsi tersedia."}
                         </p>
                       </div>
                     </div>
+
+                    {/* Admin Actions */}
+                    {activeTab === "admin" && (
+                      <div className="px-5 pb-5 pt-0 flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(comm);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-bg-fresh hover:bg-white text-tx-primary rounded-xl text-xs font-gasoek uppercase tracking-wider transition-all border border-bg-fresh/50 shadow-sm"
+                        >
+                          <Edit2 size={14} />
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(comm.communityid);
+                          }}
+                          className="px-3 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all shadow-sm"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -470,31 +546,41 @@ const CommunityPage = () => {
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                        <button
-                          onClick={() => {
-                            const commId = selectedCommunityForPopup.communityid;
-                            setSelectedCommunityForPopup(null);
-                            navigate(`/chats?communityId=${commId}`);
-                          }}
-                          className="flex-1 flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary"
-                        >
-                          <MessageSquare size={18} />
-                          Buka Komunitas
-                        </button>
+                        {activeTab !== "pending" && (
+                          <button
+                            onClick={() => {
+                              const commId = selectedCommunityForPopup.communityid;
+                              setSelectedCommunityForPopup(null);
+                              navigate(`/chats?communityId=${commId}`);
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 py-4 bg-tx-primary text-bg-clean rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-bg-clean hover:text-tx-primary"
+                          >
+                            <MessageSquare size={18} />
+                            Buka Komunitas
+                          </button>
+                        )}
 
-                        <button
-                          onClick={() => {
-                            setIsManagingMembers(true);
-                            fetchMembers(selectedCommunityForPopup.communityid);
-                          }}
-                          className="flex-1 flex items-center justify-center gap-2 py-4 bg-bg-fresh text-tx-primary rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-tx-primary hover:text-bg-clean"
-                        >
-                          <Users size={18} />
-                          Daftar Pengguna
-                        </button>
+                        {activeTab === "admin" && (
+                          <button
+                            onClick={() => {
+                              setIsManagingMembers(true);
+                              fetchMembers(selectedCommunityForPopup.communityid);
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 py-4 bg-bg-fresh text-tx-primary rounded-xl cursor-pointer font-gasoek text-sm tracking-wide shadow-md hover:bg-tx-primary hover:text-bg-clean"
+                          >
+                            <Users size={18} />
+                            Daftar Pengguna
+                          </button>
+                        )}
+                        
+                        {activeTab === "pending" && (
+                          <div className="flex-1 py-4 bg-bg-vermillion/20 text-tx-primary rounded-xl font-gasoek text-sm text-center border border-bg-vermillion/30 italic">
+                            Permintaan kamu sedang ditinjau oleh admin
+                          </div>
+                        )}
                       </div>
 
-                      {user?.userid === selectedCommunityForPopup.userid && (
+                      {user?.userid === selectedCommunityForPopup.userid && activeTab === "admin" && (
                         <div className="flex gap-3">
                           <button
                             onClick={() => {
@@ -502,7 +588,7 @@ const CommunityPage = () => {
                               setSelectedCommunityForPopup(null);
                               handleEdit(comm);
                             }}
-                            className="flex-1 py-4 bg-slate-200 text-tx-primary hover:bg-tx-primary hover:text-bg-clean rounded-xl cursor-pointer font-gasoek text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                            className="flex-1 py-4 bg-bg-fresh text-tx-primary hover:bg-white rounded-xl cursor-pointer font-gasoek text-sm shadow-md transition-all flex items-center justify-center gap-2"
                             title="Edit Komunitas"
                           >
                             <Edit2 size={16} /> Edit
@@ -514,7 +600,7 @@ const CommunityPage = () => {
                               setSelectedCommunityForPopup(null);
                               handleDelete(commId);
                             }}
-                            className="flex-1 py-4 bg-red-50 text-white cursor-pointer rounded-xl font-gasoek text-sm hover:bg-red-600 shadow-md transition-all flex items-center justify-center gap-2"
+                            className="flex-1 py-4 bg-red-500 text-white hover:bg-red-600 cursor-pointer rounded-xl font-gasoek text-sm shadow-md transition-all flex items-center justify-center gap-2"
                             title="Hapus Komunitas"
                           >
                             <Trash2 size={16} /> Hapus

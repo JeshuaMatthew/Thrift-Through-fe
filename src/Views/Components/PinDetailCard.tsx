@@ -10,7 +10,8 @@ import { LLMService } from "../../Services/LLMService";
 import type { User } from "../../Types/User";
 import UserDetailPopup from "./UserDetailPopup";
 import { formatImageUrl } from "../../Utils/FormatUrl";
-import { Sparkles, TrendingUp, Leaf, MessageSquare, ShoppingBag, RefreshCw } from "lucide-react";
+import { Sparkles, TrendingUp, Leaf, MessageSquare, ShoppingBag, RefreshCw, Loader2, Plus, Check, Lock } from "lucide-react";
+import { TransactionServices } from "../../Services/TransactionServices";
 import { useNavigate } from "react-router-dom";
 
 interface PinDetailCardProps {
@@ -27,6 +28,8 @@ const PinDetailCard: React.FC<PinDetailCardProps> = ({ pin, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
   const [isCarbonLoading, setIsCarbonLoading] = useState(false);
+  const [isBuying, setIsBuying] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
   const [selectedUserPopup, setSelectedUserPopup] = useState<User | null>(null);
 
   const fetchDetails = async () => {
@@ -103,6 +106,57 @@ const PinDetailCard: React.FC<PinDetailCardProps> = ({ pin, onClose }) => {
       setIsCarbonLoading(false);
     }
   };
+  
+  const handleBuyItem = async () => {
+    if (!itemDetail || isBuying) return;
+
+    const confirmed = window.confirm(
+      `Kamu yakin ingin membeli "${itemDetail.itemname}"? Penjual akan mendapatkan notifikasi dan bisa menerima atau menolak permintaanmu.`
+    );
+    if (!confirmed) return;
+
+    setIsBuying(true);
+    try {
+      const transactionService = new TransactionServices();
+      const res = await transactionService.buyItem(
+        itemDetail.itemid,
+        itemDetail.itemprice,
+        (itemDetail.transaction_type as 'Uang' | 'Barter') || 'Uang'
+      );
+      if (res.success) {
+        alert("Permintaan pembelian berhasil dikirim! Lihat status di halaman Pesananku.");
+        navigate("/orders?tab=purchases");
+      } else {
+        alert(res.message);
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan saat melakukan pembelian.");
+    } finally {
+      setIsBuying(false);
+    }
+  };
+
+  const handleJoinCommunity = async () => {
+    if (!communityDetail || isJoining) return;
+
+    setIsJoining(true);
+    try {
+      const communityService = new CommunityService();
+      const res = await communityService.joinCommunity(communityDetail.communityid);
+      
+      if (res.success) {
+        alert(res.message);
+        await fetchDetails(); // Refresh to update status
+      } else {
+        alert(res.message);
+      }
+    } catch (error) {
+      console.error("Failed to join community:", error);
+      alert("Terjadi kesalahan saat bergabung ke komunitas.");
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   if (!pin) return null;
 
@@ -138,6 +192,10 @@ const PinDetailCard: React.FC<PinDetailCardProps> = ({ pin, onClose }) => {
           navigate={navigate}
           onGeneratePrice={handleGeneratePrice}
           onGenerateCarbon={handleGenerateCarbon}
+          onBuyItem={handleBuyItem}
+          isBuying={isBuying}
+          onJoinCommunity={handleJoinCommunity}
+          isJoining={isJoining}
         />
       </motion.div>
 
@@ -162,6 +220,10 @@ const PinDetailCard: React.FC<PinDetailCardProps> = ({ pin, onClose }) => {
           navigate={navigate}
           onGeneratePrice={handleGeneratePrice}
           onGenerateCarbon={handleGenerateCarbon}
+          onBuyItem={handleBuyItem}
+          isBuying={isBuying}
+          onJoinCommunity={handleJoinCommunity}
+          isJoining={isJoining}
         />
       </motion.div>
       <UserDetailPopup
@@ -223,6 +285,10 @@ const CardContent = ({
   navigate,
   onGeneratePrice,
   onGenerateCarbon,
+  onBuyItem,
+  isBuying,
+  onJoinCommunity,
+  isJoining
 }: any) => {
   const canGeneratePrice = () => {
     if (!itemDetail?.last_price_analysis) return true;
@@ -238,17 +304,63 @@ const CardContent = ({
     return (now.getTime() - last.getTime()) > (7 * 24 * 60 * 60 * 1000);
   };
 
+  const getMembershipButton = () => {
+    if (!communityDetail) return null;
+    
+    const membership = communityDetail.my_membership;
+    
+    if (membership) {
+        if (membership.status === 'Active') {
+            return (
+                <button 
+                  onClick={() => navigate(`/chats?communityId=${communityDetail.communityid}`)}
+                  className="w-full bg-tx-primary hover:bg-black text-bg-clean shadow-xl font-gasoek font-normal tracking-wide py-4 rounded-xl transition-all border border-tx-primary/20 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                    <MessageSquare size={18} />
+                    Open Community
+                </button>
+            );
+        } else if (membership.status === 'Pending') {
+            return (
+                <button 
+                  disabled
+                  className="w-full bg-bg-clean text-tx-secondary shadow-xl font-gasoek font-normal tracking-wide py-4 rounded-xl transition-all border border-tx-primary/10 flex items-center justify-center gap-2 cursor-not-allowed italic"
+                >
+                    <Check size={18} className="text-bg-fresh" />
+                    Waiting for Approval
+                </button>
+            );
+        }
+    }
+
+    return (
+        <button 
+          onClick={onJoinCommunity}
+          disabled={isJoining}
+          className="w-full bg-tx-primary hover:bg-black text-bg-clean shadow-xl font-gasoek font-normal tracking-wide py-4 rounded-xl transition-all border border-tx-primary/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+        >
+            {isJoining ? (
+                <Loader2 size={18} className="animate-spin" />
+            ) : (
+                <Plus size={18} />
+            )}
+            {isJoining ? "Joining..." : "Join Community"}
+        </button>
+    );
+  };
+
   return (
     <div>
       <div className="flex justify-between items-start mb-4 md:mb-6">
         <div className="flex-1">
           <span
-            className={`text-[10px] font-questrial font-normal tracking-wide uppercase px-2.5 py-1 rounded-lg shadow-sm ${
+            className={`text-[10px] font-questrial font-normal tracking-wide uppercase px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1.5 w-fit ${
               pin.type === "community"
                 ? "bg-bg-fresh text-tx-primary"
                 : "bg-tx-primary text-bg-clean"
             }`}
           >
+            {pin.type === "community" && communityDetail && !communityDetail.isPublic && <Lock size={10} />}
             {pin.type === "community" ? "Komunitas" : "Barang Penjual"}
           </span>
           <h2 className="text-xl md:text-2xl font-gasoek font-normal tracking-wide text-tx-primary mt-2 md:mt-3 leading-tight pr-4">
@@ -328,21 +440,7 @@ const CardContent = ({
           )}
 
           <div className="mt-2">
-            <button className="w-full bg-tx-primary hover:bg-black text-bg-clean shadow-xl font-gasoek font-normal tracking-wide py-4 rounded-xl transition-all border border-tx-primary/20 flex items-center justify-center gap-2 cursor-pointer">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Join Community
-            </button>
+            {getMembershipButton()}
           </div>
         </div>
       ) : itemDetail ? (
@@ -383,7 +481,7 @@ const CardContent = ({
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-6">
                 <div className="p-2 bg-bg-fresh rounded-xl">
-                  <Sparkles className="w-4 h-4 text-tx-primary" />
+                   <Sparkles className="w-4 h-4 text-tx-primary" />
                 </div>
                 <h3 className="text-xs font-questrial font-normal tracking-wide text-bg-fresh uppercase">
                   Kata AI
@@ -490,9 +588,13 @@ const CardContent = ({
               <MessageSquare size={18} />
               Chat
             </button>
-            <button className="flex items-center justify-center gap-2 py-4 bg-tx-primary hover:bg-black text-bg-clean rounded-xl text-sm font-gasoek uppercase tracking-wider transition-all shadow-lg cursor-pointer">
-              <ShoppingBag size={18} />
-              {itemDetail.transaction_type === "Barter" ? "Barter" : "Beli"}
+            <button 
+              onClick={onBuyItem}
+              disabled={isBuying}
+              className="flex items-center justify-center gap-2 py-4 bg-tx-primary hover:bg-black text-bg-clean rounded-xl text-sm font-gasoek uppercase tracking-wider transition-all shadow-lg cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isBuying ? <Loader2 size={18} className="animate-spin" /> : <ShoppingBag size={18} />}
+              {isBuying ? "Memproses..." : (itemDetail.transaction_type === "Barter" ? "Barter" : "Beli")}
             </button>
           </div>
         </div>
@@ -511,6 +613,3 @@ const CardContent = ({
 };
 
 export default PinDetailCard;
-
-
-

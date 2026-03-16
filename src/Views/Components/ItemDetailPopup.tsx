@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MessageSquare, ShoppingBag, Sparkles, TrendingUp, Leaf, RefreshCw } from "lucide-react";
+import { X, MessageSquare, ShoppingBag, Sparkles, TrendingUp, Leaf, RefreshCw, Loader2 } from "lucide-react";
+import { TransactionServices } from "../../Services/TransactionServices";
 import type { Item } from "../../Services/ThriftsServices";
 import { LLMService } from "../../Services/LLMService";
 import { formatImageUrl } from "../../Utils/FormatUrl";
@@ -22,6 +23,7 @@ const ItemDetailPopup = ({
   const navigate = useNavigate();
   const [isPriceLoading, setIsPriceLoading] = useState(false);
   const [isCarbonLoading, setIsCarbonLoading] = useState(false);
+  const [isBuying, setIsBuying] = useState(false);
 
   const canGeneratePrice = () => {
     if (!selectedItem?.last_price_analysis) return true;
@@ -70,6 +72,36 @@ const ItemDetailPopup = ({
       console.error("Carbon AI Generation failed", error);
     } finally {
       setIsCarbonLoading(false);
+    }
+  };
+
+  const handleBuyItem = async () => {
+    if (!selectedItem || isBuying) return;
+
+    const confirmed = window.confirm(
+      `Kamu yakin ingin membeli "${selectedItem.itemname}"? Penjual akan mendapatkan notifikasi dan bisa menerima atau menolak permintaanmu.`
+    );
+    if (!confirmed) return;
+
+    setIsBuying(true);
+    try {
+      const transactionService = new TransactionServices();
+      const res = await transactionService.buyItem(
+        selectedItem.itemid,
+        selectedItem.itemprice,
+        (selectedItem.transaction_type as "Uang" | "Barter") || "Uang"
+      );
+      if (res.success) {
+        onClose();
+        alert("Permintaan pembelian berhasil dikirim! Lihat status di halaman Pesananku.");
+        navigate("/orders?tab=purchases");
+      } else {
+        alert(res.message);
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan saat melakukan pembelian.");
+    } finally {
+      setIsBuying(false);
     }
   };
 
@@ -241,9 +273,13 @@ const ItemDetailPopup = ({
                       <MessageSquare size={18} />
                       Chat
                     </button>
-                    <button className="flex items-center justify-center gap-1.5 py-4 bg-tx-primary hover:bg-black text-bg-clean rounded-xl text-sm font-bold font-questrial shadow-md transition-colors">
-                      <ShoppingBag size={18} />
-                      {selectedItem.transaction_type === 'Barter' ? 'Barter' : 'Beli'}
+                    <button 
+                      onClick={handleBuyItem}
+                      disabled={isBuying}
+                      className="flex items-center justify-center gap-1.5 py-4 bg-tx-primary hover:bg-black text-bg-clean rounded-xl text-sm font-bold font-questrial shadow-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isBuying ? <Loader2 size={18} className="animate-spin" /> : <ShoppingBag size={18} />}
+                      {isBuying ? "Memproses..." : (selectedItem.transaction_type === "Barter" ? "Barter" : "Beli")}
                     </button>
                   </div>
                 )}

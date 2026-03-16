@@ -6,6 +6,10 @@ import { formatImageUrl } from "../Utils/FormatUrl";
 // Interface balikan untuk Get Detail (Komunitas + Daftar Anggota Lengkap)
 export interface CommunityDetail extends Community {
     members: User[];
+    my_membership?: {
+        status: string;
+        role: string;
+    } | null;
 }
 
 // Helper to map backend community to frontend Community interface
@@ -68,6 +72,22 @@ export class CommunityService {
             return { communities: [], meta: {} };
         } catch (error) {
             console.error("Error fetching my communities:", error);
+            return { communities: [], meta: {} };
+        }
+    }
+
+    async getMyMemberships(params?: any): Promise<{ communities: Community[]; meta: any }> {
+        try {
+            const response = await AxiosInstance.get("/communities/memberships", { params });
+            if (response.data && Array.isArray(response.data.communities)) {
+                return {
+                    communities: response.data.communities.map(mapCommunity),
+                    meta: response.data.meta
+                };
+            }
+            return { communities: [], meta: {} };
+        } catch (error) {
+            console.error("Error fetching my memberships:", error);
             return { communities: [], meta: {} };
         }
     }
@@ -142,7 +162,8 @@ export class CommunityService {
 
             return {
                 ...community,
-                members
+                members,
+                my_membership: response.data.my_membership
             };
         } catch (error) {
             return null;
@@ -225,6 +246,22 @@ export class CommunityService {
         } catch (error) {
             console.error("Error creating DM:", error);
             return null;
+        }
+    }
+
+    async joinCommunity(communityId: number): Promise<{ success: boolean; message: string; status?: string }> {
+        try {
+            const response = await AxiosInstance.post(`/communities/${communityId}/join`);
+            return {
+                success: true,
+                message: response.data.message,
+                status: response.data.status
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                message: error.response?.data?.error || "Gagal bergabung ke komunitas."
+            };
         }
     }
 }
