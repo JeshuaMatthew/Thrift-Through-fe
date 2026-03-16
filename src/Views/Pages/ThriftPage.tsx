@@ -47,6 +47,7 @@ const ThriftPage = () => {
         });
         setMyThrifts(thrifts);
         setTotalPages(meta?.totalPages || 1);
+        return thrifts;
       } catch (error) {
         console.error("Failed to fetch thrifts:", error);
       } finally {
@@ -55,6 +56,7 @@ const ThriftPage = () => {
     } else {
       setIsLoading(false);
     }
+    return [];
   };
 
   useEffect(() => {
@@ -392,6 +394,15 @@ const ThriftPage = () => {
       <ItemDetailPopup
         selectedItem={selectedItem}
         onClose={() => setSelectedItem(null)}
+        onRefresh={async () => {
+          const updatedItems = await fetchMyThrifts();
+          if (selectedItem && updatedItems) {
+            const freshItem = updatedItems.find((i) => i.itemid === selectedItem.itemid);
+            if (freshItem) {
+              setSelectedItem(freshItem);
+            }
+          }
+        }}
         footer={
           <div className="grid grid-cols-2 gap-3 mt-auto">
             <button

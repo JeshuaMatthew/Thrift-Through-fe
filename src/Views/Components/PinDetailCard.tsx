@@ -258,7 +258,7 @@ const CardContent = ({
 
         <button
           onClick={onClose}
-          className="p-2 bg-black/10 text-tx-primary/70 hover:text-tx-primary rounded-xl hover:bg-black/20 transition-all flex-shrink-0"
+          className="p-2 bg-black/10 text-tx-primary/70 hover:text-tx-primary rounded-xl hover:bg-black/20 transition-all shrink-0"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -369,7 +369,7 @@ const CardContent = ({
                    Sisa {itemDetail.itemquantity}
                 </div>
              </div>
-            <h3 className="text-xs font-questrial font-normal tracking-wide text-tx-primary mb-2 uppercase text-tx-primary">
+            <h3 className="text-xs font-questrial font-normal tracking-wide text-tx-primary mb-2 uppercase">
               Deskripsi Barang
             </h3>
             <p className="text-sm text-tx-primary font-questrial leading-relaxed">
@@ -457,7 +457,7 @@ const CardContent = ({
                           <p className="text-[10px] font-questrial text-white uppercase">Karbon Dihemat</p>
                           <span className="text-xs font-gasoek text-bg-fresh">
                              {itemDetail.ai_carbon_analysis
-                               ? (typeof itemDetail.ai_carbon_analysis === 'string' ? JSON.parse(itemDetail.ai_carbon_analysis).carbon_saved_kg : (itemDetail.ai_carbon_analysis as any).carbon_saved_kg)
+                               ? `${parseFloat(typeof itemDetail.ai_carbon_analysis === 'string' ? JSON.parse(itemDetail.ai_carbon_analysis).carbon_saved_kg : (itemDetail.ai_carbon_analysis as any).carbon_saved_kg)} kg`
                                : "-"}
                           </span>
                        </div>

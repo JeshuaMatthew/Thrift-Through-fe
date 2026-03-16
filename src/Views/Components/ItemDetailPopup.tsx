@@ -193,11 +193,11 @@ const ItemDetailPopup = ({
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-3">
                        <div className="flex items-center justify-between">
                           <p className="text-[10px] font-questrial text-white uppercase">Karbon Dihemat</p>
-                          <span className="text-xs font-gasoek text-bg-fresh">
-                             {selectedItem.ai_carbon_analysis
-                               ? (typeof selectedItem.ai_carbon_analysis === 'string' ? JSON.parse(selectedItem.ai_carbon_analysis).carbon_saved_kg : (selectedItem.ai_carbon_analysis as any).carbon_saved_kg)
-                               : "-"}
-                          </span>
+                           <span className="text-xs font-gasoek text-bg-fresh">
+                              {selectedItem.ai_carbon_analysis
+                                ? `${parseFloat(typeof selectedItem.ai_carbon_analysis === 'string' ? JSON.parse(selectedItem.ai_carbon_analysis).carbon_saved_kg : (selectedItem.ai_carbon_analysis as any).carbon_saved_kg)} kg`
+                                : "-"}
+                           </span>
                        </div>
                        <div className="flex items-center justify-between">
                           <p className="text-[10px] font-questrial text-white uppercase">Rating Dampak</p>

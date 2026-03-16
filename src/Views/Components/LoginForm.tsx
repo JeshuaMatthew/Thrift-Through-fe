@@ -46,7 +46,7 @@ const LoginForm: React.FC = () => {
 
       <form onSubmit={handleLogin} className="space-y-5 relative z-10">
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-3 text-red-400 text-sm animate-pulse">
+          <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-3 text-red-500 text-sm animate-pulse">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5 shrink-0"
