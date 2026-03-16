@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import logoLarge from "../../Assets/def/logo-large.webp";
 
 const BaseNavbar = () => {
   const location = useLocation();
@@ -40,7 +41,7 @@ const BaseNavbar = () => {
           <div className="shrink-0">
             <Link to="/" className="flex items-center">
               <img
-                src="/src/Assets/def/logo-large.webp"
+                src={logoLarge}
                 alt="ThriftThrough Logo"
                 className={`h-10 object-contain transition-all duration-300 ${isTransparent ? "brightness-[4]" : "brightness-100"}`}
               />
@@ -138,7 +139,7 @@ const BaseNavbar = () => {
                 className="flex items-center"
               >
                 <img
-                  src="/src/Assets/def/logo-large.webp"
+                  src={logoLarge}
                   alt="ThriftThrough Logo"
                   className={`h-10 object-contain transition-all duration-300 brightness-[4]`}
                 />

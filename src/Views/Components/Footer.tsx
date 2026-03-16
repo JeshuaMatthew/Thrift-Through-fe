@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Sparkles, Instagram } from "lucide-react";
 import AnimatedGrass from "./AnimatedGrass";
+import logoLarge from "../../Assets/def/logo-large.webp";
 
 const allQuickLinks = [
   { label: "Pasar", to: "/market" },
@@ -51,7 +52,7 @@ const Footer = () => {
             <div className="lg:col-span-2 flex flex-col gap-5">
               <Link to="/" className="w-fit">
                 <img
-                  src="/src/Assets/def/logo-large.webp"
+                  src={logoLarge}
                   alt="ThriftThrough Logo"
                   className="h-12 object-contain brightness-[4]"
                 />

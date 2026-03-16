@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import EWasteScrollAnimation from "../Components/EWasteScrollAnimation";
 import FeatureScrollAnimation from "../Components/FeatureScrollAnimation";
+import nathanCimaGpu from "../../Assets/Homepage/nathan-cima-gpu.webp";
 
 const HomePage = () => {
   const words = ["menjual", "menukar"];
@@ -189,7 +190,7 @@ const HomePage = () => {
           <div className="relative">
             <div className="rounded-2xl overflow-hidden shadow-2xl border border-slate-100">
               <img
-                src="/src/Assets/Homepage/nathan-cima-gpu.webp"
+                src={nathanCimaGpu}
                 alt="Tumpukan komponen elektronik bekas - e-waste"
                 className="w-full h-auto object-cover"
               />

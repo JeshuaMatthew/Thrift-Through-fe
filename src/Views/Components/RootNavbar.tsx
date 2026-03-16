@@ -4,6 +4,7 @@ import { useAuth } from "../../Utils/Hooks/AuthProvider";
 import { LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatImageUrl } from "../../Utils/FormatUrl";
+import logoLarge from "../../Assets/def/logo-large.webp";
 
 const RootNavbar = () => {
   const location = useLocation();
@@ -46,7 +47,7 @@ const RootNavbar = () => {
               <Link to="/thrifts" className="flex items-center group">
                 <motion.img
                   layout
-                  src="/src/Assets/def/logo-large.webp"
+                  src={logoLarge}
                   alt="ThriftThrough Logo"
                   className={`object-contain ${isMapPage ? "h-7" : "h-10"}`}
                 />
@@ -195,7 +196,7 @@ const RootNavbar = () => {
                 className="flex items-center"
               >
                 <img
-                  src="/src/Assets/def/logo-large.webp"
+                  src={logoLarge}
                   alt="ThriftThrough Logo"
                   className={`h-10 object-contain transition-all duration-300 brightness-[4]`}
                 />
