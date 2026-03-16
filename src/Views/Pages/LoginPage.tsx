@@ -32,6 +32,9 @@ const LoginPage: React.FC = () => {
             masih berharga, sekaligus wujudkan harapan untuk bumi yang lebih
             bersih.
           </p>
+          <p className="mt-4 text-xs text-white/40 font-questrial">
+            Video by cottonbro studio: <a href="https://www.pexels.com/video/a-vintage-audio-recorder-8382686/" target="_blank" rel="noreferrer" className="underline hover:text-white transition-colors">Pexels</a>
+          </p>
         </div>
       </div>
 

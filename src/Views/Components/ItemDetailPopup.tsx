@@ -126,7 +126,7 @@ const ItemDetailPopup = ({
               {/* Harga/Barter */}
               <div className={`${selectedItem.transaction_type === 'Barter' ? 'bg-bg-vermillion/20 border-bg-vermillion/50' : 'bg-bg-fresh border-bg-fresh/50'} px-4 py-3 rounded-xl shadow-sm border text-center`}>
                 <p className="text-2xl font-gasoek text-tx-primary">
-                  {selectedItem.transaction_type === 'Barter' ? 'BARTER' : `Rp ${selectedItem.itemprice.toLocaleString("id-ID")}`}
+                  {selectedItem.transaction_type === 'Barter' ? 'BARTER' : `Rp ${Number(selectedItem.itemprice).toLocaleString("id-ID")}`}
                 </p>
               </div>
 
@@ -166,7 +166,7 @@ const ItemDetailPopup = ({
                                : "-"}
                           </span>
                        </div>
-                       <p className="text-xs text-white/80 font-questrial leading-loose italic">
+                       <p className="text-sm text-white/80 font-questrial leading-loose italic">
                          "{selectedItem.ai_price_analysis_text || "Belum ada analisis harga."}"
                        </p>
                     </div>
@@ -207,7 +207,7 @@ const ItemDetailPopup = ({
                                : "-"}
                           </span>
                        </div>
-                       <p className="text-xs text-white/80 font-questrial leading-loose italic">
+                       <p className="text-sm text-white/80 font-questrial leading-loose italic">
                          "{selectedItem.ai_carbon_analysis_text || "Belum ada analisis karbon."}"
                        </p>
                     </div>

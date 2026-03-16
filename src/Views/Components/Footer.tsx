@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, Github, Instagram, Linkedin, Twitter } from "lucide-react";
+import { Sparkles, Instagram } from "lucide-react";
 import AnimatedGrass from "./AnimatedGrass";
 
 const allQuickLinks = [
@@ -17,29 +17,6 @@ const publicQuickLinks = [
   { label: "Homepage", to: "/" },
   { label: "Login", to: "/login" },
   { label: "Daftar", to: "/register" },
-];
-
-const socialLinks = [
-  {
-    label: "GitHub",
-    href: "https://github.com/JeshuaMatthew",
-    icon: Github,
-  },
-  {
-    label: "Instagram",
-    href: "https://instagram.com/",
-    icon: Instagram,
-  },
-  {
-    label: "LinkedIn",
-    href: "https://linkedin.com/",
-    icon: Linkedin,
-  },
-  {
-    label: "Twitter / X",
-    href: "https://twitter.com/",
-    icon: Twitter,
-  },
 ];
 
 const Footer = () => {
@@ -118,16 +95,29 @@ const Footer = () => {
                 Social Media
               </h4>
               <ul className="flex flex-col gap-3">
-                {socialLinks.map(({ label, href, icon: Icon }) => (
-                  <li key={label}>
+                {[
+                  {
+                    name: "Arvel",
+                    href: "https://www.instagram.com/arvel_pey/",
+                  },
+                  {
+                    name: "Andrew",
+                    href: "https://www.instagram.com/andrewsimatupang.16/",
+                  },
+                  {
+                    name: "Matthew",
+                    href: "https://www.instagram.com/matt.hthn/",
+                  },
+                ].map(({ name, href }) => (
+                  <li key={name}>
                     <a
                       href={href}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-2.5 text-sm text-slate-400 hover:text-white transition-colors duration-200 group"
                     >
-                      <Icon className="w-4 h-4 shrink-0 group-hover:text-bg-vermillion transition-colors duration-200" />
-                      {label}
+                      <Instagram className="w-4 h-4 shrink-0 group-hover:text-bg-vermillion transition-colors duration-200" />
+                      {name}
                     </a>
                   </li>
                 ))}

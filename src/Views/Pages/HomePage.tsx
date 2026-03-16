@@ -49,7 +49,6 @@ const HomePage = () => {
           playsInline
           className="absolute z-0 w-auto min-w-full min-h-full max-w-none object-cover pointer-events-none"
         >
-          {/* Using a placeholder nature/shopping video if available, or just a beautiful generic one */}
           <source
             src="https://www.pexels.com/download/video/36498297/"
             type="video/mp4"
@@ -71,6 +70,10 @@ const HomePage = () => {
               <br />
               barang elektronik bekas.
             </h1>
+            
+            <p className="text-xs text-white/40 font-questrial">
+              Video by Jakub Zerdzicki: <a href="https://www.pexels.com/video/aerial-view-of-modern-city-skyscrapers-36498297/" target="_blank" rel="noreferrer" className="underline hover:text-white transition-colors">Pexels</a>
+            </p>
 
             {/* Supporting subtext */}
             <p className="text-base md:text-lg text-white/70 font-questrial max-w-xl leading-relaxed">

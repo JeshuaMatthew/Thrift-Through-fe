@@ -35,6 +35,9 @@ const RegisterPage: React.FC = () => {
             Mulailah perjalananmu untuk mengurangi e-waste dan memberikan kesempatan kedua bagi gadget lamamu. 
             Bersama kita ciptakan bumi yang lebih hijau dan berkelanjutan.
           </p>
+          <p className="mt-4 text-xs text-white/40 font-questrial">
+            Video by cottonbro studio: <a href="https://www.pexels.com/video/a-vintage-audio-recorder-8382686/" target="_blank" rel="noreferrer" className="underline hover:text-white transition-colors">Pexels</a>
+          </p>
         </div>
       </div>
     </div>

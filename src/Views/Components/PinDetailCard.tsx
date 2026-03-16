@@ -362,7 +362,7 @@ const CardContent = ({
              <div className="flex items-center justify-between mb-4">
                 <div className={`${itemDetail.transaction_type === 'Barter' ? 'bg-bg-vermillion/20' : 'bg-bg-fresh/50'} px-4 py-2 rounded-xl border border-tx-primary/10`}>
                    <p className="text-xl font-gasoek text-tx-primary">
-                      {itemDetail.transaction_type === 'Barter' ? 'BARTER' : `Rp ${itemDetail.itemprice.toLocaleString("id-ID")}`}
+                      {itemDetail.transaction_type === 'Barter' ? 'BARTER' : `Rp ${Number(itemDetail.itemprice).toLocaleString("id-ID")}`}
                    </p>
                 </div>
                 <div className="text-[10px] font-questrial text-tx-primary uppercase bg-black/5 px-2 py-1 rounded-lg">
@@ -422,7 +422,7 @@ const CardContent = ({
                                : "-"}
                           </span>
                        </div>
-                       <p className="text-xs text-white/80 font-questrial leading-loose italic">
+                       <p className="text-sm text-white/80 font-questrial leading-loose italic">
                           "{itemDetail.ai_price_analysis_text || "Belum ada analisis harga."}"
                        </p>
                     </div>
@@ -469,7 +469,7 @@ const CardContent = ({
                                : "-"}
                           </span>
                        </div>
-                       <p className="text-xs text-white/80 font-questrial leading-loose italic">
+                       <p className="text-sm text-white/80 font-questrial leading-loose italic">
                           "{itemDetail.ai_carbon_analysis_text || "Belum ada analisis karbon."}"
                        </p>
                     </div>
