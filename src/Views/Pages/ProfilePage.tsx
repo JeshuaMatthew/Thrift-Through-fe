@@ -8,7 +8,6 @@ import {
   Phone,
   Edit2,
   Trash2,
-  LogOut,
   X,
   Camera,
   ImageIcon,
@@ -18,7 +17,6 @@ import {
 import type { User } from "../../Types/User";
 import { useNavigate } from "react-router-dom";
 import ImageCropModal from "../Components/ImageCropModal";
-import { Plus, Upload } from "lucide-react";
 
 const ProfilePage = () => {
   const { user } = useAuth();
@@ -347,7 +345,7 @@ const ProfilePage = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl bg-bg-clean rounded-[2rem] overflow-hidden shadow-2xl border-t-8 border-bg-vermillion"
+              className="relative w-full max-w-2xl bg-bg-clean rounded-4xl overflow-hidden shadow-2xl border-t-8 border-bg-vermillion"
             >
               {/* Edit Modal Content */}
               {isEditModalOpen && (

@@ -42,9 +42,9 @@ const MapComponent: React.FC = () => {
     const fetchCommunities = async () => {
       const communityService = new CommunityService();
       const comms = await communityService.getAllCommunities();
-      const formatted = comms
-        .filter(c => c.longitude !== undefined && c.latitude !== undefined)
-        .map(c => ({
+      const formatted = comms.communities
+        .filter((c: any) => c.longitude !== undefined && c.latitude !== undefined)
+        .map((c: any) => ({
           id: c.communityid,
           name: c.communityname,
           lng: c.longitude as number,
@@ -66,7 +66,7 @@ const MapComponent: React.FC = () => {
       } else {
         fetchedItems = await thriftService.getAvailableThriftsInArea(-6.1751, 106.8272, 99999);
       }
-      const formatted = fetchedItems.map(i => ({
+      const formatted = fetchedItems.map((i: any) => ({
         id: i.itemid,
         name: i.itemname,
         lng: i.longitude,

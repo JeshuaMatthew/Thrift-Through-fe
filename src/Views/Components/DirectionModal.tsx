@@ -41,7 +41,7 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
     if (!userCoords) return;
     try {
       const resp = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${userCoords.lng},${userCoords.lat};${itemCoords.lng},${itemCoords.lat}?overview=full&geometries=geojson`
+        `https://router.project-osrm.org/route/v1/driving/${userCoords.lng},${userCoords.lat};${itemCoords.lng},${itemCoords.lat}?overview=full&geometries=geojson`,
       );
       const data = await resp.json();
       if (data.routes && data.routes.length > 0) {
@@ -57,7 +57,7 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
             [Math.min(...lngs), Math.min(...lats)],
             [Math.max(...lngs), Math.max(...lats)],
           ],
-          { padding: 80, duration: 2000 }
+          { padding: 80, duration: 2000 },
         );
       }
     } catch (error) {
@@ -68,7 +68,7 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
   const openInGoogleMaps = () => {
     window.open(
       `https://www.google.com/maps/dir/?api=1&origin=${userCoords?.lat},${userCoords?.lng}&destination=${itemCoords.lat},${itemCoords.lng}&travelmode=driving`,
-      "_blank"
+      "_blank",
     );
   };
 
@@ -100,7 +100,10 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
                     Petunjuk Arah
                   </h2>
                   <p className="text-xs font-questrial text-tx-secondary">
-                    Lokasi: <span className="text-bg-vermillion font-bold">{itemName}</span>
+                    Lokasi:{" "}
+                    <span className="text-bg-vermillion font-bold">
+                      {itemName}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -117,11 +120,17 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
               {!userCoords && (
                 <div className="absolute inset-0 z-10 bg-bg-clean/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8">
                   <div className="w-16 h-16 bg-bg-vermillion/10 rounded-full flex items-center justify-center mb-4">
-                    <MapPin size={32} className="text-bg-vermillion animate-bounce" />
+                    <MapPin
+                      size={32}
+                      className="text-bg-vermillion animate-bounce"
+                    />
                   </div>
-                  <h3 className="font-gasoek text-tx-primary mb-2">Lokasi kamu tidak terdeteksi</h3>
+                  <h3 className="font-gasoek text-tx-primary mb-2">
+                    Lokasi kamu tidak terdeteksi
+                  </h3>
                   <p className="text-sm font-questrial text-tx-secondary max-w-xs">
-                    Aktifkan izin lokasi pada browser kamu untuk melihat rute dari posisimu saat ini.
+                    Aktifkan izin lokasi pada browser kamu untuk melihat rute
+                    dari posisimu saat ini.
                   </p>
                 </div>
               )}
@@ -141,7 +150,11 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
 
                 {/* User Marker */}
                 {userCoords && (
-                  <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="bottom">
+                  <Marker
+                    longitude={userCoords.lng}
+                    latitude={userCoords.lat}
+                    anchor="bottom"
+                  >
                     <div className="relative group">
                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white px-2 py-1 rounded-md shadow-md text-[10px] font-gasoek whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                         Kamu di sini
@@ -154,11 +167,15 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
                 )}
 
                 {/* Item Marker */}
-                <Marker longitude={itemCoords.lng} latitude={itemCoords.lat} anchor="bottom">
+                <Marker
+                  longitude={itemCoords.lng}
+                  latitude={itemCoords.lat}
+                  anchor="bottom"
+                >
                   <div className="relative group">
-                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-bg-vermillion text-white px-2 py-1 rounded-md shadow-md text-[10px] font-gasoek whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                        Lokasi Barang
-                      </div>
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-bg-vermillion text-white px-2 py-1 rounded-md shadow-md text-[10px] font-gasoek whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                      Lokasi Barang
+                    </div>
                     <div className="w-8 h-8 rounded-full bg-bg-vermillion border-2 border-white shadow-lg flex items-center justify-center text-white ring-4 ring-bg-vermillion/20">
                       <MapPin size={16} className="fill-current" />
                     </div>
@@ -167,7 +184,11 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
 
                 {/* Route Line */}
                 {route && (
-                  <Source id="route" type="geojson" data={{ type: "Feature", properties: {}, geometry: route }}>
+                  <Source
+                    id="route"
+                    type="geojson"
+                    data={{ type: "Feature", properties: {}, geometry: route }}
+                  >
                     <Layer
                       id="route-layer"
                       type="line"
@@ -187,24 +208,37 @@ const DirectionModal: React.FC<DirectionModalProps> = ({
                 <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row gap-4">
                   <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-bg-vermillion/20 shadow-xl flex items-center gap-4 grow">
                     <div className="flex-1 border-r border-gray-100 pr-4">
-                      <p className="text-[10px] uppercase font-gasoek text-tx-muted tracking-wider mb-0.5">Jarak Estimasi</p>
-                      <p className="text-xl font-gasoek text-tx-primary">{(distance / 1000).toFixed(1)} <span className="text-xs">KM</span></p>
+                      <p className="text-[10px] uppercase font-gasoek text-tx-muted tracking-wider mb-0.5">
+                        Jarak Estimasi
+                      </p>
+                      <p className="text-xl font-gasoek text-tx-primary">
+                        {(distance / 1000).toFixed(1)}{" "}
+                        <span className="text-xs">KM</span>
+                      </p>
                     </div>
                     <div className="flex-1 pl-2">
-                       <p className="text-[10px] uppercase font-gasoek text-tx-muted tracking-wider mb-0.5">Waktu Tempuh</p>
-                       <p className="text-xl font-gasoek text-tx-primary">{(duration / 60).toFixed(0)} <span className="text-xs">Menit</span></p>
+                      <p className="text-[10px] uppercase font-gasoek text-tx-muted tracking-wider mb-0.5">
+                        Waktu Tempuh
+                      </p>
+                      <p className="text-xl font-gasoek text-tx-primary">
+                        {(duration / 60).toFixed(0)}{" "}
+                        <span className="text-xs">Menit</span>
+                      </p>
                     </div>
                     <div className="hidden sm:flex w-10 h-10 rounded-full bg-bg-fresh items-center justify-center text-tx-primary shrink-0">
                       <Info size={18} />
                     </div>
                   </div>
-                  
+
                   <button
                     onClick={openInGoogleMaps}
                     className="bg-tx-primary text-bg-clean hover:bg-black px-6 py-4 rounded-2xl font-gasoek text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-xl shrink-0 group"
                   >
                     Buka Google Maps
-                    <ExternalLink size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    <ExternalLink
+                      size={16}
+                      className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
+                    />
                   </button>
                 </div>
               )}
